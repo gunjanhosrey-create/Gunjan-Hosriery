@@ -24,7 +24,7 @@
       plugins: [
         makeTagger(),
         injectedGuiListenerPlugin({
-          path: 'https://miaoda-resource-static.s3cdn.medo.dev/common/v2/injected.js'
+          path: 'https://gunjan-resource-static.s3cdn.medo.dev/common/v2/injected.js'
         }),
         injectOnErrorPlugin(),
         ...(userConfig?.plugins || []),
@@ -117,8 +117,8 @@
 ,
         monitorPlugin(
           {
-            scriptSrc: 'https://miaoda-resource-static.s3cdn.medo.dev/sentry/browser.sentry.min.js',
-            sentryDsn: 'https://e3c07b90fcb5207f333d50ac24a99d3e@sentry.miaoda.cn/233',
+            scriptSrc: 'https://gunjan-resource-static.s3cdn.medo.dev/sentry/browser.sentry.min.js',
+            sentryDsn: 'https://e3c07b90fcb5207f333d50ac24a99d3e@sentry.gunjan.cn/233',
             environment: 'undefined',
             appId: 'app-9vao4wkqc8ht'
           }

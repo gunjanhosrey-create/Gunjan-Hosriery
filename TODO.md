@@ -1,4 +1,4 @@
-# Task: Build Gunjan Hosrey Premium Fashion E-commerce Website
+# Task: Build Gunjan Hosiery Premium Fashion E-commerce Website
 
 ## Plan
 - [x] Step 1: Design System Setup

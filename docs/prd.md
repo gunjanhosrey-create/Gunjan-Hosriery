@@ -1,9 +1,9 @@
-# Gunjan Hosrey Fashion Website Requirements Document
+# Gunjan Hosiery Fashion Website Requirements Document
 
 ## 1. Application Overview
 
 ### 1.1 Application Name
-Gunjan Hosrey Fashion Website
+Gunjan Hosiery Fashion Website
 
 ### 1.2 Application Description
 A premium 3D e-commerce website featuring an immersive virtual fashion showroom experience. Users can explore and purchase clothing collections for men, women, and kids through interactive 3D product displays and realistic visual presentations.

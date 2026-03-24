@@ -79,6 +79,11 @@ CREATE POLICY "Public read own orders"
 ON orders FOR SELECT
 USING (true);
 
+-- Allow updates for order status (for admin functionality)
+CREATE POLICY "Public update orders"
+ON orders FOR UPDATE
+USING (true);
+
 -- Create indexes
 CREATE INDEX idx_products_category ON products(category_id);
 CREATE INDEX idx_products_featured ON products(is_featured);

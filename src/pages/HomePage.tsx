@@ -6,26 +6,27 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Product3DCard } from '@/components/Product3DCard';
 import { ProductCarousel } from '@/components/ProductCarousel';
 import { CategoryShowcase } from '@/components/CategoryShowcase';
-import { getCategories, getFeaturedProducts, getNewArrivals } from '@/db/api';
+import { getProducts } from '@/db/api';
+import { supabase } from '@/db/supabase';
 import type { Category, Product } from '@/types/index';
 
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [categoriesData, featuredData, newArrivalsData] = await Promise.all([
-          getCategories(),
-          getFeaturedProducts(),
-          getNewArrivals(),
-        ]);
-        setCategories(categoriesData);
-        setFeaturedProducts(featuredData);
-        setNewArrivals(newArrivalsData);
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*');
+        console.log('categories:', data);
+        if (error) console.error('categories error:', error);
+
+        const productsData = await getProducts();
+        setCategories(data || []);
+        setProducts(productsData || []);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -34,6 +35,18 @@ export default function HomePage() {
     }
     loadData();
   }, []);
+
+  const featuredProducts =
+    products.filter((p) => p?.is_featured).length > 0
+      ? products.filter((p) => p.is_featured).slice(0, 8)
+      : products.slice(0, 8);
+  const newArrivals = [...products]
+    .sort(
+      (a, b) =>
+        new Date(b?.created_at ?? 0).getTime() -
+        new Date(a?.created_at ?? 0).getTime()
+    )
+    .slice(0, 8);
 
   return (
     <div className="min-h-screen">
@@ -48,7 +61,7 @@ export default function HomePage() {
             </span>
           </div>
           <h1 className="text-5xl md:text-7xl font-bold mb-6 gradient-text">
-            Gunjan Hosrey
+            Gunjan Hosiery
           </h1>
           <p className="text-xl md:text-2xl text-foreground mb-8 max-w-2xl mx-auto">
             Experience luxury fashion with our exclusive collection of premium clothing for men, women, and kids

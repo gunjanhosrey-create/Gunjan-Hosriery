@@ -1,111 +1,169 @@
+import { Facebook, Instagram, Mail, MapPin, Phone, Youtube } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from 'lucide-react';
+
+const shopLinks = [
+  { label: 'MEN', href: '/products?category=men' },
+  { label: 'WOMEN', href: '/products?category=women' },
+  { label: 'BOYS', href: '/products?category=boys' },
+  { label: 'GIRLS', href: '/products?category=girls' },
+];
+
+const quickLinks = [
+  { label: 'Privacy Policy', href: '/contact' },
+  { label: 'Return Policy', href: '/contact' },
+  { label: 'Shipping Policy', href: '/contact' },
+  { label: 'Terms and Conditions', href: '/contact' },
+  { label: 'Track Order', href: '/whatsapp-order' },
+];
+
+const aboutLinks = [
+  { label: 'Retailer B2B Enquiry', href: '/contact' },
+  { label: 'Bulk Orders', href: '/contact' },
+  { label: 'About Us', href: '/about' },
+  { label: 'Contact Us', href: '/contact' },
+  { label: 'Admin', href: '/admin' },
+];
+
+const socialLinks = [
+  {
+    label: 'Instagram',
+    href: 'https://www.instagram.com/gunjanhosiery?igsh=ODh6M2hzc3N6dDV2',
+    icon: Instagram,
+  },
+  {
+    label: 'Facebook',
+    href: 'https://www.facebook.com/profile.php?id=61576791716033',
+    icon: Facebook,
+  },
+  {
+    label: 'YouTube',
+    href: 'https://www.youtube.com/',
+    icon: Youtube,
+  },
+];
 
 export function Footer() {
   return (
-    <footer className="bg-primary text-primary-foreground mt-20">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand */}
+    <footer className="mt-20 border-t border-slate-200 bg-slate-950 text-slate-100">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="grid gap-10 md:grid-cols-2 xl:grid-cols-5">
           <div>
-            <h3 className="text-xl font-bold mb-4">Gunjan Hosrey</h3>
-            <p className="text-sm text-primary-foreground/80 mb-4">
-              Premium fashion destination for men, women, and kids. Experience luxury in every stitch.
-            </p>
-            <div className="flex space-x-4">
-              <a href="#" className="hover:text-gold transition-colors">
-                <Facebook className="h-5 w-5" />
-              </a>
-              <a href="#" className="hover:text-gold transition-colors">
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a href="#" className="hover:text-gold transition-colors">
-                <Twitter className="h-5 w-5" />
-              </a>
+            <div className="mb-5 flex items-center gap-3">
+              <img
+                src="/images/gunjan-logo.png"
+                alt="Gunjan Hosiery logo"
+                className="h-12 w-12 rounded-full object-cover ring-1 ring-white/15"
+              />
+              <span className="text-lg font-bold tracking-[0.04em] text-white">
+                Gunjan Hosiery
+              </span>
             </div>
-          </div>
-
-          {/* Quick Links */}
-          <div>
-            <h4 className="font-semibold mb-4">Quick Links</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link to="/" className="hover:text-gold transition-colors">
-                  Home
-                </Link>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+              Get In Touch
+            </p>
+            <ul className="mt-6 space-y-4 text-sm text-slate-300">
+              <li className="flex items-start gap-3">
+                <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
+                <span>
+                  C-34, UPSIDC Industrial Area, Rooma, Chekeri Ward, Kanpur,
+                  Uttar Pradesh 209402
+                </span>
               </li>
-              <li>
-                <Link to="/products" className="hover:text-gold transition-colors">
-                  Products
-                </Link>
+              <li className="flex items-center gap-3">
+                <Mail className="h-4 w-4 flex-shrink-0 text-red-400" />
+                <a href="mailto:gunjanhosrey@gmail.com" className="transition hover:text-white">
+                  gunjanhosrey@gmail.com
+                </a>
               </li>
-              <li>
-                <Link to="/about" className="hover:text-gold transition-colors">
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link to="/contact" className="hover:text-gold transition-colors">
-                  Contact
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin" className="hover:text-gold transition-colors">
-                  Admin
-                </Link>
+              <li className="flex items-center gap-3">
+                <Phone className="h-4 w-4 flex-shrink-0 text-red-400" />
+                <a href="tel:+919170259644" className="transition hover:text-white">
+                  +91 9170259644
+                </a>
               </li>
             </ul>
           </div>
 
-          {/* Categories */}
           <div>
-            <h4 className="font-semibold mb-4">Categories</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link to="/products?category=pogo-sets" className="hover:text-gold transition-colors">
-                  Pogo Sets
-                </Link>
-              </li>
-              <li>
-                <Link to="/products?category=zara-style" className="hover:text-gold transition-colors">
-                  Zara Style
-                </Link>
-              </li>
-              <li>
-                <Link to="/products?category=little-champ" className="hover:text-gold transition-colors">
-                  Little Champ
-                </Link>
-              </li>
-              <li>
-                <Link to="/products?category=t-shirts" className="hover:text-gold transition-colors">
-                  T-Shirts
-                </Link>
-              </li>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+              Shop Now
+            </p>
+            <ul className="mt-6 space-y-3 text-sm text-slate-300">
+              {shopLinks.map((item) => (
+                <li key={item.label}>
+                  <Link to={item.href} className="transition hover:text-white">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Contact */}
           <div>
-            <h4 className="font-semibold mb-4">Contact Us</h4>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start space-x-2">
-                <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>Fashion Street, Mumbai, India</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <Phone className="h-4 w-4 flex-shrink-0" />
-                <span>+91 98765 43210</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <Mail className="h-4 w-4 flex-shrink-0" />
-                <span>info@gunjanhosrey.com</span>
-              </li>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+              Quick Links
+            </p>
+            <ul className="mt-6 space-y-3 text-sm text-slate-300">
+              {quickLinks.map((item) => (
+                <li key={item.label}>
+                  <Link to={item.href} className="transition hover:text-white">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+              About & Connect
+            </p>
+            <ul className="mt-6 space-y-3 text-sm text-slate-300">
+              {aboutLinks.map((item) => (
+                <li key={item.label}>
+                  <Link to={item.href} className="transition hover:text-white">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+              Newsletter
+            </p>
+            <div className="mt-6">
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-2">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  className="w-full bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex items-center gap-3">
+              {socialLinks.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={item.label}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-300 transition hover:border-red-500 hover:bg-red-600 hover:text-white"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        <div className="border-t border-primary-foreground/20 mt-8 pt-8 text-center text-sm text-primary-foreground/80">
-          <p>&copy; 2026 Gunjan Hosrey. All rights reserved.</p>
+        <div className="mt-12 border-t border-white/10 pt-6 text-center text-sm text-slate-400">
+          <p>Copyright © 2026 Gunjan Hosiery. All rights reserved.</p>
         </div>
       </div>
     </footer>

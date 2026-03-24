@@ -24,6 +24,7 @@ export interface Product {
   category_id: string | null;
   image_url: string;
   additional_images: string[];
+  color_images?: Record<string, string>;
   sizes: string[];
   colors: string[];
   stock_quantity: number;
@@ -39,7 +40,8 @@ export interface Order {
   customer_name: string;
   customer_email: string | null;
   customer_phone: string;
-  customer_address: string;
+  customer_address: string | null;
+  payment_method?: string | null;
   total_amount: number;
   status: string;
   order_items: OrderItem[];
@@ -66,7 +68,7 @@ export interface CartItem {
 export interface Inquiry {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   subject: string | null;
   message: string;
@@ -83,4 +85,3 @@ export interface DashboardStats {
   totalInquiries: number;
   newInquiries: number;
 }
-

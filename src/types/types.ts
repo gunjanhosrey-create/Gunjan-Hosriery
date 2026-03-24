@@ -17,6 +17,7 @@ export interface Product {
   category_id: string | null;
   image_url: string;
   additional_images: string[];
+  color_images?: Record<string, string>;
   sizes: string[];
   colors: string[];
   stock_quantity: number;

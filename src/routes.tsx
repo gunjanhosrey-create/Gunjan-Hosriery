@@ -4,6 +4,8 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import AboutPage from './pages/AboutPage';
+import AddressPage from './pages/AddressPage';
+import WhatsAppOrderPage from './pages/WhatsAppOrderPage';
 import ContactPage from './pages/ContactPage';
 import AdminPage from './pages/AdminPage';
 import type { ReactNode } from 'react';
@@ -45,6 +47,16 @@ const routes: RouteConfig[] = [
     name: 'About',
     path: '/about',
     element: <AboutPage />,
+  },
+  {
+    name: 'Address',
+    path: '/address',
+    element: <AddressPage />,
+  },
+  {
+    name: 'WhatsApp Order',
+    path: '/whatsapp-order',
+    element: <WhatsAppOrderPage />,
   },
   {
     name: 'Contact',

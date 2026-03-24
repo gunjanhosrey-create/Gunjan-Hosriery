@@ -1,6 +1,90 @@
 import { supabase } from './supabase';
 import type { Category, Product, Order, OrderItem, Inquiry, DashboardStats } from '@/types/index';
 
+const normalizeStringList = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map(String).map((item) => item.trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map(String).map((item) => item.trim()).filter(Boolean);
+        }
+      } catch {
+        // Fall back to loose parsing below.
+      }
+    }
+
+    return value
+      .split(',')
+      .map((item) => item.trim().replace(/^['"\[\]]+|['"\[\]]+$/g, ''))
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const COLOR_IMAGE_PREFIX = 'color::';
+
+const normalizeColorKey = (value: string) => value.trim().toLowerCase();
+
+const parseColorImageMap = (value: unknown): Record<string, string> => {
+  if (!Array.isArray(value)) return {};
+
+  return value.reduce<Record<string, string>>((acc, entry) => {
+    if (typeof entry !== 'string' || !entry.startsWith(COLOR_IMAGE_PREFIX)) {
+      return acc;
+    }
+
+    const rawValue = entry.slice(COLOR_IMAGE_PREFIX.length);
+    const separatorIndex = rawValue.indexOf('::');
+    if (separatorIndex === -1) return acc;
+
+    const color = rawValue.slice(0, separatorIndex).trim();
+    const url = rawValue.slice(separatorIndex + 2).trim();
+
+    if (!color || !url) return acc;
+
+    acc[normalizeColorKey(color)] = url;
+    return acc;
+  }, {});
+};
+
+const normalizeProduct = (product: any): Product => {
+  const additionalImages = Array.isArray(product.additional_images)
+    ? product.additional_images.map(String)
+    : [];
+
+  return {
+    ...product,
+    image_url: product.image_url ?? product.image ?? '',
+    slug:
+      product.slug ??
+      (product.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+    additional_images: additionalImages,
+    color_images: parseColorImageMap(additionalImages),
+    sizes: normalizeStringList(product.sizes),
+    colors: normalizeStringList(product.colors),
+  };
+};
+
+const normalizeOrder = (order: any): Order => ({
+  ...order,
+  customer_name: order.customer_name ?? order.name ?? '',
+  customer_email: order.customer_email ?? order.email ?? null,
+  customer_phone: order.customer_phone ?? order.phone ?? '',
+  customer_address: order.customer_address ?? order.address ?? null,
+  payment_method: order.payment_method ?? null,
+  total_amount: Number(order.total_amount ?? 0),
+  status: order.status ?? 'pending',
+  order_items: Array.isArray(order.order_items) ? order.order_items : [],
+});
+
 // Categories
 export async function getCategories(): Promise<Category[]> {
   const { data, error } = await supabase
@@ -8,7 +92,10 @@ export async function getCategories(): Promise<Category[]> {
     .select('*')
     .order('display_order', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    console.error('[getCategories] Supabase error:', error.message, error.code);
+    return [];
+  }
   return Array.isArray(data) ? data : [];
 }
 
@@ -23,90 +110,144 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
   return data;
 }
 
-// Products
-export async function getProducts(limit?: number): Promise<Product[]> {
-  let query = supabase
-    .from('products')
-    .select('*')
-    .order('created_at', { ascending: false });
+export async function createCategory(category: Omit<Category, 'id' | 'created_at'>): Promise<Category> {
+  const { data, error } = await supabase
+    .from('categories')
+    .insert([category])
+    .select()
+    .single();
 
-  if (limit) {
-    query = query.limit(limit);
+  if (error) {
+    console.error('[createCategory] Supabase error:', error.message, error.code);
+    throw error;
   }
-
-  const { data, error } = await query;
-
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  return data;
 }
 
-export async function getFeaturedProducts(): Promise<Product[]> {
+// Products
+// GET - normalizes image column to image_url for frontend
+export const getProducts = async () => {
+  const { data, error } = await supabase.from('products').select('*')
+  if (error) {
+    console.error('[getProducts]', error)
+    return []
+  }
+  return (data || []).map(normalizeProduct)
+}
+
+// ADD
+export const addProduct = async (product) => {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
-    .eq('is_featured', true)
-    .order('created_at', { ascending: false })
-    .limit(8);
+    .insert([product])
+    .select()
+    .single()
 
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  if (error) {
+    console.error('[addProduct] INSERT ERROR:', error.message, error.code, error.details);
+    throw error;
+  }
+  return data;
 }
 
-export async function getNewArrivals(): Promise<Product[]> {
+// UPDATE
+export const updateProduct = async (id, dataUpdate) => {
   const { data, error } = await supabase
     .from('products')
-    .select('*')
-    .eq('is_new_arrival', true)
-    .order('created_at', { ascending: false })
-    .limit(8);
+    .update(dataUpdate)
+    .eq('id', id)
+    .select()
+    .maybeSingle()
 
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  if (error) {
+    console.error('[updateProduct] UPDATE ERROR:', error.message, error.code);
+    throw error;
+  }
+  return data;
 }
 
-export async function getTrendingProducts(): Promise<Product[]> {
-  const { data, error } = await supabase
+// DELETE
+export const deleteProduct = async (id) => {
+  const { error } = await supabase
     .from('products')
-    .select('*')
-    .eq('is_trending', true)
-    .order('created_at', { ascending: false })
-    .limit(8);
+    .delete()
+    .eq('id', id)
 
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  if (error) {
+    console.error('[deleteProduct] DELETE ERROR:', error.message, error.code);
+    throw error;
+  }
 }
 
-export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
+export const deleteOrder = async (id: string) => {
+  const { error } = await supabase
+    .from('orders')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('[deleteOrder] DELETE ERROR:', error.message, error.code);
+    throw error;
+  }
+}
+
+// GET PRODUCTS BY CATEGORY
+export const getProductsByCategory = async (categoryId) => {
   const { data, error } = await supabase
     .from('products')
     .select('*')
     .eq('category_id', categoryId)
-    .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  if (error) console.log(error)
+  return data
 }
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('slug', slug)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
-}
-
-export async function searchProducts(query: string): Promise<Product[]> {
+// SEARCH PRODUCTS
+export const searchProducts = async (query) => {
   const { data, error } = await supabase
     .from('products')
     .select('*')
     .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
-    .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  if (error) console.log(error)
+  return data
+}
+
+// GET PRODUCT BY SLUG
+export const getProductBySlug = async (slug) => {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error) console.log(error)
+  if (!data) return data
+
+  return normalizeProduct(data)
+}
+
+// CREATE PRODUCT (alias for addProduct)
+export const createProduct = addProduct
+
+// TEST ALL
+const test = async () => {
+  // ADD
+  await addProduct({ name: 'Test', price: 100 })
+
+  // GET
+  const data = await getProducts()
+  console.log(data)
+
+  // UPDATE
+  if (data.length > 0) {
+    await updateProduct(data[0].id, { name: 'Updated' })
+  }
+
+  // DELETE
+  if (data.length > 0) {
+    await deleteProduct(data[0].id)
+  }
 }
 
 // Orders
@@ -115,60 +256,72 @@ export async function createOrder(orderData: {
   customer_email: string | null;
   customer_phone: string;
   customer_address: string;
+  payment_method?: string | null;
   total_amount: number;
   order_items: OrderItem[];
 }): Promise<Order> {
+  const primaryPayload = {
+    customer_name: orderData.customer_name,
+    phone: orderData.customer_phone,
+    email: orderData.customer_email,
+    address: orderData.customer_address,
+    payment_method: orderData.payment_method ?? null,
+    total_amount: orderData.total_amount,
+    order_items: orderData.order_items,
+    status: 'pending'
+  };
+
   const { data, error } = await supabase
     .from('orders')
-    .insert({
-      ...orderData,
-      status: 'pending'
-    })
+    .insert(primaryPayload)
     .select()
     .single();
 
-  if (error) throw error;
-  return data;
-}
+  if (!error && data) return normalizeOrder(data);
 
-// Admin functions
-export async function createProduct(productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<Product> {
-  const { data, error } = await supabase
-    .from('products')
-    .insert(productData)
+  const message = error?.message || '';
+  const fallbackSchemaError =
+    message.includes('customer_address') ||
+    message.includes('customer_phone') ||
+    message.includes('customer_email');
+
+  if (!fallbackSchemaError) throw error;
+
+  const fallbackPayload = {
+    customer_name: orderData.customer_name,
+    customer_email: orderData.customer_email,
+    customer_phone: orderData.customer_phone,
+    customer_address: orderData.customer_address,
+    payment_method: orderData.payment_method ?? null,
+    total_amount: orderData.total_amount,
+    order_items: orderData.order_items,
+    status: 'pending'
+  };
+
+  const { data: fallbackData, error: fallbackError } = await supabase
+    .from('orders')
+    .insert(fallbackPayload)
     .select()
     .single();
 
-  if (error) throw error;
-  return data;
-}
-
-export async function updateProduct(id: string, productData: Partial<Product>): Promise<Product> {
-  const { data, error } = await supabase
-    .from('products')
-    .update({ ...productData, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-export async function deleteProduct(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('products')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
+  if (fallbackError) throw fallbackError;
+  return normalizeOrder(fallbackData);
 }
 
 // Inquiries
 export async function createInquiry(inquiryData: Omit<Inquiry, 'id' | 'status' | 'created_at' | 'updated_at'>): Promise<Inquiry> {
+  const payload = {
+    name: inquiryData.name,
+    phone: inquiryData.phone || null,
+    email: inquiryData.email || null,
+    subject: inquiryData.subject || null,
+    message: inquiryData.message,
+    status: 'new' as const,
+  };
+
   const { data, error } = await supabase
     .from('inquiries')
-    .insert(inquiryData)
+    .insert(payload)
     .select()
     .single();
 
@@ -183,7 +336,15 @@ export async function getInquiries(): Promise<Inquiry[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) return [];
+
+  return data.map((inquiry) => ({
+    ...inquiry,
+    email: inquiry.email || '',
+    phone: inquiry.phone || null,
+    subject: inquiry.subject || null,
+    status: inquiry.status || 'new',
+  }));
 }
 
 export async function updateInquiryStatus(id: string, status: 'new' | 'in_progress' | 'resolved'): Promise<Inquiry> {
@@ -220,7 +381,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const totalOrders = orders?.length || 0;
     const totalRevenue = orders?.reduce((sum, order) => sum + order.total_amount, 0) || 0;
     const pendingOrders = orders?.filter(o => o.status === 'pending').length || 0;
-    const completedOrders = orders?.filter(o => o.status === 'completed').length || 0;
+    const completedOrders = orders?.filter(o => o.status === 'complete').length || 0;
 
     // Get inquiries data
     const { data: inquiries, error: inquiriesError } = await supabase
@@ -261,17 +422,17 @@ export async function getRecentOrders(limit: number = 10): Promise<Order[]> {
     .limit(limit);
 
   if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data) ? data.map(normalizeOrder) : [];
 }
 
 export async function updateOrderStatus(id: string, status: Order['status']): Promise<Order> {
   const { data, error } = await supabase
     .from('orders')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq('id', id)
     .select()
     .single();
 
   if (error) throw error;
-  return data;
+  return normalizeOrder(data);
 }

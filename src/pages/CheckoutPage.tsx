@@ -56,6 +56,7 @@ export default function CheckoutPage() {
         customer_email: formData.email || null,
         customer_phone: formData.phone,
         customer_address: formData.address,
+        payment_method: paymentMethod.toUpperCase(),
         total_amount: getCartTotal(),
         order_items: orderItems,
       });
@@ -66,7 +67,7 @@ export default function CheckoutPage() {
       if (paymentMethod === 'upi') {
         toast.success('Order placed! Please complete UPI payment.');
         // Generate UPI payment link
-        const upiUrl = `upi://pay?pa=${formData.upiId}&pn=Gunjan Hosrey&am=${getCartTotal()}&cu=INR&tn=Order ${order.id.slice(0, 8)}`;
+        const upiUrl = `upi://pay?pa=${formData.upiId}&pn=Gunjan Hosiery&am=${getCartTotal()}&cu=INR&tn=Order ${order.id.slice(0, 8)}`;
         window.location.href = upiUrl;
         setTimeout(() => navigate('/'), 2000);
       } else if (paymentMethod === 'cod') {

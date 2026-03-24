@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, LogOut, Lock, LayoutDashboard, Package, ShoppingBag, MessageSquare, TrendingUp, Users, DollarSign, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, LogOut, Lock, LayoutDashboard, Package, ShoppingBag, MessageSquare, TrendingUp, Users, DollarSign, Clock, Download, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -38,9 +39,11 @@ import {
   getProducts, 
   updateProduct, 
   deleteProduct,
+  createCategory,
   getDashboardStats,
   getRecentOrders,
   updateOrderStatus,
+  deleteOrder,
   getInquiries,
   updateInquiryStatus,
   deleteInquiry
@@ -58,6 +61,9 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [inquirySearch, setInquirySearch] = useState('');
+  const [inquiryStatusFilter, setInquiryStatusFilter] = useState('all');
+  const [inquiryPage, setInquiryPage] = useState(1);
   const [stats, setStats] = useState<DashboardStats>({
     totalOrders: 0,
     totalRevenue: 0,
@@ -73,6 +79,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const inquiriesPerPage = 5;
 
   const [formData, setFormData] = useState({
     name: '',
@@ -83,12 +90,65 @@ export default function AdminPage() {
     image_url: '',
     sizes: '',
     colors: '',
+    color_images: '',
     stock_quantity: '',
     is_featured: false,
     is_new_arrival: false,
     is_trending: false,
   });
 
+  const parseColorImageMappings = (value: string) =>
+    value
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [color, ...urlParts] = line.split('|');
+        const url = urlParts.join('|').trim();
+        return {
+          color: color?.trim(),
+          url,
+        };
+      })
+      .filter((entry) => entry.color && entry.url)
+      .map((entry) => `color::${entry.color}::${entry.url}`);
+
+  const serializeColorImageMappings = (product: Product) =>
+    Object.entries(product.color_images || {})
+      .map(([color, url]) => `${color}|${url}`)
+      .join('\n');
+
+  const colorSwatchMap: Record<string, string> = {
+    black: '#111111',
+    white: '#f8fafc',
+    red: '#dc2626',
+    blue: '#2563eb',
+    navy: '#1e3a8a',
+    green: '#16a34a',
+    yellow: '#facc15',
+    pink: '#ec4899',
+    purple: '#7c3aed',
+    orange: '#f97316',
+    grey: '#6b7280',
+    gray: '#6b7280',
+    brown: '#8b5e3c',
+    beige: '#d6c4a1',
+    cream: '#f5f0e6',
+    maroon: '#7f1d1d',
+    olive: '#4d5d27',
+    sky: '#38bdf8',
+  };
+
+  const getColorSwatchValue = (color: string) =>
+    colorSwatchMap[color.trim().toLowerCase()] || color.trim().toLowerCase();
+
+  const formatColorLabel = (color: string) =>
+    color
+      .split(/[\s_-]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+  
   useEffect(() => {
     async function loadData() {
       try {
@@ -99,7 +159,15 @@ export default function AdminPage() {
           getInquiries(),
           getDashboardStats(),
         ]);
-        setCategories(categoriesData);
+        console.log('[Admin] categories loaded:', categoriesData?.length ?? 0, categoriesData);
+        
+        // Ensure default categories exist
+        await ensureDefaultCategories(categoriesData || []);
+        
+        // Reload categories after ensuring defaults
+        const updatedCategories = await getCategories();
+        setCategories(updatedCategories);
+        
         setProducts(productsData);
         setOrders(ordersData);
         setInquiries(inquiriesData);
@@ -112,6 +180,32 @@ export default function AdminPage() {
       loadData();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    setInquiryPage(1);
+  }, [inquirySearch, inquiryStatusFilter]);
+
+  const ensureDefaultCategories = async (existingCategories: Category[]) => {
+    const defaultCategories = [
+      { name: 'Men', slug: 'men', description: 'Fashion for men', display_order: 1 },
+      { name: 'Women', slug: 'women', description: 'Fashion for women', display_order: 2 },
+      { name: 'Kids', slug: 'kids', description: 'Fashion for kids', display_order: 3 },
+      { name: 'Boys', slug: 'boys', description: 'Fashion for boys', display_order: 4 },
+      { name: 'Girls', slug: 'girls', description: 'Fashion for girls', display_order: 5 },
+    ];
+
+    for (const category of defaultCategories) {
+      const exists = existingCategories.some(c => c.slug === category.slug);
+      if (!exists) {
+        try {
+          await createCategory(category);
+          console.log(`Created category: ${category.name}`);
+        } catch (error) {
+          console.error(`Error creating category ${category.name}:`, error);
+        }
+      }
+    }
+  };
 
   const compressImage = async (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
@@ -165,73 +259,79 @@ export default function AdminPage() {
     if (!file) return;
 
     setUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(20);
 
     try {
-      let uploadFile = file;
-
-      // Check file size and compress if needed
-      if (file.size > 1024 * 1024) {
-        toast.info('Compressing image...');
-        uploadFile = await compressImage(file);
-      }
-
-      // Generate unique filename
-      const fileExt = uploadFile.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-      setUploadProgress(50);
+      const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
 
       const { data, error } = await supabase.storage
-        .from('app-9vao4wkqc8ht_product_images')
-        .upload(fileName, uploadFile);
+        .from('product_images')
+        .upload(fileName, file);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Upload error:', error);
+        toast.error(`Upload failed: ${error.message}`);
+        return;
+      }
 
-      setUploadProgress(75);
+      setUploadProgress(80);
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('app-9vao4wkqc8ht_product_images').getPublicUrl(data.path);
+      const { data: urlData } = supabase.storage
+        .from('product_images')
+        .getPublicUrl(data.path);
 
-      setFormData({ ...formData, image_url: publicUrl });
+      setFormData((prev) => ({ ...prev, image_url: urlData.publicUrl }));
       setUploadProgress(100);
       toast.success('Image uploaded successfully!');
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      toast.error('Failed to upload image');
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      toast.error('Upload failed');
     } finally {
       setUploading(false);
       setUploadProgress(0);
+      e.target.value = '';
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.slug || !formData.price || !formData.image_url) {
-      toast.error('Please fill in all required fields');
+    const missing = [];
+    if (!formData.name) missing.push('Product Name');
+    if (!formData.price) missing.push('Price');
+    if (!formData.image_url) missing.push('Product Image (upload first, wait for success)');
+    if (missing.length > 0) {
+      toast.error(`Missing: ${missing.join(', ')}`);
       return;
     }
 
     setLoading(true);
 
     try {
-      const productData = {
+      const slug =
+        formData.slug ||
+        (formData.name || '')
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-]/g, '') ||
+        `product-${Date.now()}`;
+
+      const productData: Record<string, unknown> = {
         name: formData.name,
-        slug: formData.slug,
+        slug,
         description: formData.description || null,
         price: Number.parseFloat(formData.price),
         category_id: formData.category_id || null,
         image_url: formData.image_url,
-        additional_images: [],
-        sizes: formData.sizes ? formData.sizes.split(',').map((s) => s.trim()) : [],
-        colors: formData.colors ? formData.colors.split(',').map((c) => c.trim()) : [],
         stock_quantity: Number.parseInt(formData.stock_quantity) || 0,
+        additional_images: parseColorImageMappings(formData.color_images),
         is_featured: formData.is_featured,
         is_new_arrival: formData.is_new_arrival,
         is_trending: formData.is_trending,
       };
+      if (formData.colors) {
+        productData.colors = formData.colors.split(',').map((c) => c.trim()).filter(Boolean);
+      }
 
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData);
@@ -252,6 +352,7 @@ export default function AdminPage() {
         image_url: '',
         sizes: '',
         colors: '',
+        color_images: '',
         stock_quantity: '',
         is_featured: false,
         is_new_arrival: false,
@@ -280,6 +381,7 @@ export default function AdminPage() {
       image_url: product.image_url,
       sizes: product.sizes.join(', '),
       colors: product.colors.join(', '),
+      color_images: serializeColorImageMappings(product),
       stock_quantity: product.stock_quantity.toString(),
       is_featured: product.is_featured,
       is_new_arrival: product.is_new_arrival,
@@ -326,14 +428,38 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm('Are you sure you want to delete this order?')) return;
+
+    try {
+      await deleteOrder(orderId);
+      toast.success('Order deleted successfully!');
+      const [ordersData, statsData] = await Promise.all([
+        getRecentOrders(20),
+        getDashboardStats(),
+      ]);
+      setOrders(ordersData);
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toast.error('Failed to delete order');
+    }
+  };
+
+  const refreshInquiryData = async () => {
+    const [inquiriesData, statsData] = await Promise.all([
+      getInquiries(),
+      getDashboardStats(),
+    ]);
+    setInquiries(inquiriesData);
+    setStats(statsData);
+  };
+
   const handleInquiryStatusChange = async (inquiryId: string, status: Inquiry['status']) => {
     try {
       await updateInquiryStatus(inquiryId, status);
       toast.success('Inquiry status updated!');
-      const inquiriesData = await getInquiries();
-      setInquiries(inquiriesData);
-      const statsData = await getDashboardStats();
-      setStats(statsData);
+      await refreshInquiryData();
     } catch (error) {
       console.error('Error updating inquiry status:', error);
       toast.error('Failed to update inquiry status');
@@ -346,12 +472,59 @@ export default function AdminPage() {
     try {
       await deleteInquiry(inquiryId);
       toast.success('Inquiry deleted successfully!');
-      const inquiriesData = await getInquiries();
-      setInquiries(inquiriesData);
+      await refreshInquiryData();
     } catch (error) {
       console.error('Error deleting inquiry:', error);
       toast.error('Failed to delete inquiry');
     }
+  };
+
+  const formatWhatsAppNumber = (phone: string | null) => {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    if (!digits) return '';
+    return digits.startsWith('91') ? digits : `91${digits}`;
+  };
+
+  const handleInquiryWhatsApp = (inquiry: Inquiry) => {
+    const phone = formatWhatsAppNumber(inquiry.phone);
+    if (!phone) {
+      toast.error('Phone number missing for this inquiry');
+      return;
+    }
+
+    const message = `Hello ${inquiry.name}, thanks for contacting Gunjan Hosrey. We received your inquiry${inquiry.subject ? ` about "${inquiry.subject}"` : ''}.`;
+    window.open(
+      `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
+      '_blank'
+    );
+  };
+
+  const exportInquiriesToCSV = () => {
+    const headers = ['Name', 'Phone', 'Email', 'Subject', 'Message', 'Status', 'Created At'];
+    const escapeCSV = (value: string | null | undefined) =>
+      `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+    const rows = filteredInquiries.map((inquiry) =>
+      [
+        inquiry.name,
+        inquiry.phone,
+        inquiry.email,
+        inquiry.subject,
+        inquiry.message,
+        inquiry.status,
+        new Date(inquiry.created_at).toLocaleString(),
+      ].map(escapeCSV).join(',')
+    );
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `inquiries-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -375,6 +548,7 @@ export default function AdminPage() {
       image_url: '',
       sizes: '',
       colors: '',
+      color_images: '',
       stock_quantity: '',
       is_featured: false,
       is_new_arrival: false,
@@ -382,6 +556,41 @@ export default function AdminPage() {
     });
     setDialogOpen(true);
   };
+
+  const normalizedInquirySearch = inquirySearch.trim().toLowerCase();
+  const filteredInquiries = inquiries.filter((inquiry) => {
+    const matchesSearch =
+      !normalizedInquirySearch ||
+      inquiry.name?.toLowerCase().includes(normalizedInquirySearch) ||
+      inquiry.email?.toLowerCase().includes(normalizedInquirySearch) ||
+      inquiry.phone?.toLowerCase().includes(normalizedInquirySearch) ||
+      inquiry.subject?.toLowerCase().includes(normalizedInquirySearch) ||
+      inquiry.message?.toLowerCase().includes(normalizedInquirySearch);
+
+    const matchesStatus =
+      inquiryStatusFilter === 'all' || inquiry.status === inquiryStatusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+  const totalInquiryCount = inquiries.length;
+  const newInquiryCount = inquiries.filter((inquiry) => inquiry.status === 'new').length;
+  const inProgressInquiryCount = inquiries.filter((inquiry) => inquiry.status === 'in_progress').length;
+  const resolvedInquiryCount = inquiries.filter((inquiry) => inquiry.status === 'resolved').length;
+  const inquiryPageCount = Math.max(1, Math.ceil(filteredInquiries.length / inquiriesPerPage));
+  const safeInquiryPage = Math.min(inquiryPage, inquiryPageCount);
+  const inquiryStartIndex = (safeInquiryPage - 1) * inquiriesPerPage;
+  const paginatedInquiries = filteredInquiries.slice(
+    inquiryStartIndex,
+    inquiryStartIndex + inquiriesPerPage
+  );
+  const navigationItems = [
+    { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { value: 'products', label: 'Products', icon: Package },
+    { value: 'orders', label: 'Orders', icon: ShoppingBag },
+    { value: 'inquiries', label: 'Inquiries', icon: MessageSquare },
+  ] as const;
+  const activeSectionLabel =
+    navigationItems.find((item) => item.value === activeTab)?.label || 'Dashboard';
 
   // Login screen
   if (!isAuthenticated) {
@@ -418,117 +627,143 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-secondary py-12">
-        <div className="container mx-auto px-4 flex justify-between items-center">
-          <h1 className="text-4xl md:text-5xl font-bold">Admin Dashboard</h1>
-          <Button variant="outline" onClick={logout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
-        </div>
-      </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.12),_transparent_28%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)]">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-screen lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="border-b border-white/60 bg-slate-950 px-5 py-6 text-white shadow-2xl lg:border-b-0 lg:border-r lg:border-slate-800/80">
+          <div className="mb-8 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">
+              <LayoutDashboard className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Gunjan Hosrey</p>
+              <h1 className="text-xl font-semibold">Admin Suite</h1>
+            </div>
+          </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </TabsTrigger>
-            <TabsTrigger value="products" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              <span className="hidden sm:inline">Products</span>
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
-              <ShoppingBag className="h-4 w-4" />
-              <span className="hidden sm:inline">Orders</span>
-            </TabsTrigger>
-            <TabsTrigger value="inquiries" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Inquiries</span>
-            </TabsTrigger>
+          <TabsList className="grid h-auto w-full gap-2 bg-transparent p-0">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <TabsTrigger
+                  key={item.value}
+                  value={item.value}
+                  className="h-12 w-full justify-start rounded-2xl border border-transparent px-4 text-left text-sm font-medium text-slate-300 transition data-[state=active]:border-white/10 data-[state=active]:bg-white data-[state=active]:text-slate-950 data-[state=active]:shadow-lg"
+                >
+                  <Icon className="mr-3 h-4 w-4" />
+                  {item.label}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
+
+          <div className="mt-8 rounded-3xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+            <p className="font-medium">Live snapshot</p>
+            <p className="mt-2 text-emerald-50/80">{stats.totalInquiries} inquiries and {stats.totalOrders} orders tracked.</p>
+          </div>
+        </aside>
+
+        <div className="min-w-0">
+          <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
+            <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-600">Admin Panel</p>
+                <h2 className="mt-1 text-2xl font-semibold text-slate-900">{activeSectionLabel}</h2>
+                <p className="text-sm text-slate-500">Premium workspace for catalog, orders, and customer operations.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">User</p>
+                  <p className="text-sm font-semibold text-slate-900">Admin</p>
+                </div>
+                <Button variant="outline" className="rounded-2xl border-slate-300 bg-white px-4 shadow-sm" onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <div className="px-4 py-6 sm:px-6 lg:px-8">
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <Card className="overflow-hidden rounded-[28px] border-0 bg-gradient-to-br from-slate-950 via-slate-900 to-sky-950 text-white shadow-[0_24px_80px_-32px_rgba(15,23,42,0.8)]">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-slate-200">Total Revenue</CardTitle>
+                  <DollarSign className="h-5 w-5 text-sky-300" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">₹{stats.totalRevenue.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <div className="text-3xl font-bold">Rs. {stats.totalRevenue.toFixed(2)}</div>
+                  <p className="mt-1 text-xs text-slate-300">
                     From {stats.totalOrders} orders
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="rounded-[28px] border border-slate-200/70 bg-white/90 shadow-[0_20px_70px_-36px_rgba(15,23,42,0.35)]">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-                  <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                  <ShoppingBag className="h-5 w-5 text-slate-400" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalOrders}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <div className="text-3xl font-bold text-slate-900">{stats.totalOrders}</div>
+                  <p className="mt-1 text-xs text-slate-500">
                     {stats.pendingOrders} pending, {stats.completedOrders} completed
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="rounded-[28px] border border-sky-100 bg-sky-50/90 shadow-[0_20px_70px_-36px_rgba(14,165,233,0.35)]">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Inquiries</CardTitle>
-                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <MessageSquare className="h-5 w-5 text-sky-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalInquiries}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <div className="text-3xl font-bold text-slate-900">{stats.totalInquiries}</div>
+                  <p className="mt-1 text-xs text-slate-600">
                     {stats.newInquiries} new inquiries
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="rounded-[28px] border border-slate-200/70 bg-white/90 shadow-[0_20px_70px_-36px_rgba(15,23,42,0.35)]">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <Package className="h-5 w-5 text-slate-400" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{products.length}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <div className="text-3xl font-bold text-slate-900">{products.length}</div>
+                  <p className="mt-1 text-xs text-slate-500">
                     Active products in catalog
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="rounded-[28px] border border-amber-100 bg-amber-50/90 shadow-[0_20px_70px_-36px_rgba(245,158,11,0.35)]">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Pending Orders</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Clock className="h-5 w-5 text-amber-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.pendingOrders}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <div className="text-3xl font-bold text-slate-900">{stats.pendingOrders}</div>
+                  <p className="mt-1 text-xs text-slate-600">
                     Awaiting processing
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="rounded-[28px] border border-emerald-100 bg-emerald-50/90 shadow-[0_20px_70px_-36px_rgba(16,185,129,0.35)]">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <TrendingUp className="h-5 w-5 text-emerald-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    ₹{stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : '0.00'}
+                  <div className="text-3xl font-bold text-slate-900">
+                    Rs. {stats.totalOrders > 0 ? (stats.totalRevenue / stats.totalOrders).toFixed(2) : '0.00'}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="mt-1 text-xs text-slate-600">
                     Per order
                   </p>
                 </CardContent>
@@ -536,7 +771,7 @@ export default function AdminPage() {
             </div>
 
             {/* Recent Orders */}
-            <Card>
+            <Card className="rounded-[32px] border border-slate-200/70 bg-white/90 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.35)]">
               <CardHeader>
                 <CardTitle>Recent Orders</CardTitle>
               </CardHeader>
@@ -569,9 +804,9 @@ export default function AdminPage() {
                           <TableCell className="font-semibold">₹{order.total_amount.toFixed(2)}</TableCell>
                           <TableCell>
                             <Badge variant={
-                              order.status === 'completed' ? 'default' :
+                              order.status === 'complete' ? 'default' :
                               order.status === 'pending' ? 'secondary' :
-                              order.status === 'processing' ? 'outline' : 'destructive'
+                              order.status === 'progress' || order.status === 'onway' ? 'outline' : 'destructive'
                             }>
                               {order.status}
                             </Badge>
@@ -718,6 +953,41 @@ export default function AdminPage() {
                             <div className="text-sm text-muted-foreground">
                               {order.order_items.reduce((sum, item) => sum + item.quantity, 0)} units
                             </div>
+                            <div className="mt-3 space-y-2">
+                              {order.order_items.slice(0, 2).map((item, index) => (
+                                <div
+                                  key={`${order.id}-${item.product_id}-${index}`}
+                                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                                >
+                                  <img
+                                    src={item.product_image}
+                                    alt={item.product_name}
+                                    className="h-10 w-10 rounded-lg object-cover"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate text-sm font-medium">{item.product_name}</div>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                      {item.size && <span>Size: {item.size}</span>}
+                                      {item.color && (
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-slate-700">
+                                          <span
+                                            className="h-2.5 w-2.5 rounded-full border border-slate-300"
+                                            style={{ backgroundColor: getColorSwatchValue(item.color) }}
+                                          />
+                                          {formatColorLabel(item.color)}
+                                        </span>
+                                      )}
+                                      <span>x{item.quantity}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              {order.order_items.length > 2 && (
+                                <div className="text-xs text-slate-500">
+                                  +{order.order_items.length - 2} more item(s)
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="font-semibold">
                             ₹{order.total_amount.toFixed(2)}
@@ -732,9 +1002,11 @@ export default function AdminPage() {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="processing">Processing</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                                <SelectItem value="progress">In Progress</SelectItem>
+                                <SelectItem value="onway">On The Way</SelectItem>
+                                <SelectItem value="complete">Completed</SelectItem>
+                                <SelectItem value="cancel">Cancelled</SelectItem>
+                                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
@@ -742,6 +1014,7 @@ export default function AdminPage() {
                             {new Date(order.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
+                            <div className="flex gap-2">
                             <Button
                               size="sm"
                               variant="outline"
@@ -754,6 +1027,14 @@ export default function AdminPage() {
                             >
                               View
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteOrder(order.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -766,9 +1047,70 @@ export default function AdminPage() {
 
           {/* Inquiries Tab */}
           <TabsContent value="inquiries" className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Card className="border-l-4 border-l-primary">
+                <CardContent className="flex items-center justify-between p-5">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Inquiries</p>
+                    <p className="text-3xl font-bold">{totalInquiryCount}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-muted-foreground" />
+                </CardContent>
+              </Card>
+              <Card className="border-l-4 border-l-orange-500">
+                <CardContent className="flex items-center justify-between p-5">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Needs Attention</p>
+                    <p className="text-3xl font-bold">{newInquiryCount}</p>
+                    <p className="text-xs text-muted-foreground">{inProgressInquiryCount} in progress</p>
+                  </div>
+                  <MessageSquare className="h-8 w-8 text-orange-500" />
+                </CardContent>
+              </Card>
+              <Card className="border-l-4 border-l-emerald-500">
+                <CardContent className="flex items-center justify-between p-5">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Resolved</p>
+                    <p className="text-3xl font-bold">{resolvedInquiryCount}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-emerald-500" />
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
-              <CardHeader>
-                <CardTitle>Customer Inquiries ({inquiries.length})</CardTitle>
+              <CardHeader className="gap-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <CardTitle>Customer Inquiries ({filteredInquiries.length})</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Search, update, export, and respond to leads from one place.
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={exportInquiriesToCSV}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
+                <div className="flex flex-col gap-3 md:flex-row">
+                  <Input
+                    value={inquirySearch}
+                    onChange={(e) => setInquirySearch(e.target.value)}
+                    placeholder="Search name, email, phone, subject, message"
+                    className="md:max-w-md"
+                  />
+                  <Select value={inquiryStatusFilter} onValueChange={setInquiryStatusFilter}>
+                    <SelectTrigger className="md:w-52">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -785,61 +1127,127 @@ export default function AdminPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {inquiries.map((inquiry) => (
+                      {paginatedInquiries.map((inquiry) => (
                         <TableRow key={inquiry.id}>
                           <TableCell className="font-medium">{inquiry.name}</TableCell>
                           <TableCell>
-                            <div className="text-sm">{inquiry.email}</div>
-                            {inquiry.phone && (
-                              <div className="text-sm text-muted-foreground">{inquiry.phone}</div>
-                            )}
-                          </TableCell>
-                          <TableCell>{inquiry.subject || 'N/A'}</TableCell>
-                          <TableCell className="max-w-xs">
-                            <div className="line-clamp-2 text-sm">{inquiry.message}</div>
+                            <div className="text-sm">{inquiry.phone || 'No phone'}</div>
+                            <div className="text-sm text-muted-foreground">{inquiry.email || 'No email'}</div>
                           </TableCell>
                           <TableCell>
-                            <Select
-                              value={inquiry.status}
-                              onValueChange={(value) => handleInquiryStatusChange(inquiry.id, value as Inquiry['status'])}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="in_progress">In Progress</SelectItem>
-                                <SelectItem value="resolved">Resolved</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="font-medium">{inquiry.subject || 'General inquiry'}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(inquiry.created_at).toLocaleString()}
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="line-clamp-3 text-sm">{inquiry.message}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-2">
+                              <Badge
+                                variant={
+                                  inquiry.status === 'resolved'
+                                    ? 'default'
+                                    : inquiry.status === 'in_progress'
+                                      ? 'outline'
+                                      : 'secondary'
+                                }
+                                className="capitalize"
+                              >
+                                {inquiry.status.replace('_', ' ')}
+                              </Badge>
+                              <Select
+                                value={inquiry.status}
+                                onValueChange={(value) => handleInquiryStatusChange(inquiry.id, value as Inquiry['status'])}
+                              >
+                                <SelectTrigger className="w-36">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="new">New</SelectItem>
+                                  <SelectItem value="in_progress">In Progress</SelectItem>
+                                  <SelectItem value="resolved">Resolved</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </TableCell>
                           <TableCell className="text-sm">
                             {new Date(inquiry.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDeleteInquiry(inquiry.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleInquiryWhatsApp(inquiry)}
+                              >
+                                <MessageCircle className="mr-2 h-4 w-4" />
+                                WhatsApp
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteInquiry(inquiry.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
+                      {paginatedInquiries.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+                            No inquiries matched your current search/filter.
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
+                </div>
+                <div className="mt-4 flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filteredInquiries.length === 0 ? 0 : inquiryStartIndex + 1}
+                    {' '}to {Math.min(inquiryStartIndex + inquiriesPerPage, filteredInquiries.length)} of {filteredInquiries.length}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={safeInquiryPage === 1}
+                      onClick={() => setInquiryPage((page) => Math.max(1, page - 1))}
+                    >
+                      Prev
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {safeInquiryPage} of {inquiryPageCount}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={safeInquiryPage >= inquiryPageCount}
+                      onClick={() => setInquiryPage((page) => Math.min(inquiryPageCount, page + 1))}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+          </div>
+        </div>
+      </Tabs>
 
         {/* Add/Edit Product Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+              <DialogDescription className="sr-only">
+                Form to add or edit product details
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -886,15 +1294,16 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="category">Category</Label>
+                    <Label htmlFor="category">Category (optional)</Label>
                     <Select
-                      value={formData.category_id}
-                      onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                      value={formData.category_id || 'none'}
+                      onValueChange={(value) => setFormData({ ...formData, category_id: value === 'none' ? '' : value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">No category</SelectItem>
                         {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
@@ -951,7 +1360,24 @@ export default function AdminPage() {
                       onChange={(e) => setFormData({ ...formData, colors: e.target.value })}
                       placeholder="Black, White, Blue"
                     />
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Use exact color names like Red, Black, Blue, Yellow, Pink.
+                    </p>
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="color-images">Color Images</Label>
+                  <Textarea
+                    id="color-images"
+                    value={formData.color_images}
+                    onChange={(e) => setFormData({ ...formData, color_images: e.target.value })}
+                    placeholder={`red|https://image-url-red.jpg\nblue|https://image-url-blue.jpg\nblack|https://image-url-black.jpg`}
+                    rows={4}
+                  />
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    One line per color image. Format: color|image-url. Color name must match the color list exactly.
+                  </p>
                 </div>
 
                 <div>
@@ -1000,11 +1426,9 @@ export default function AdminPage() {
                 <Button type="submit" className="w-full" disabled={loading || uploading}>
                   {loading ? (editingProduct ? 'Updating...' : 'Creating...') : (editingProduct ? 'Update Product' : 'Create Product')}
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
-

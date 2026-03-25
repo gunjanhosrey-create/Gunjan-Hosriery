@@ -10,6 +10,8 @@ import {
   Star,
   Upload,
   Zap,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -159,6 +161,7 @@ export default function ProductDetailPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(100);
 
   useEffect(() => {
     async function loadProduct() {
@@ -368,6 +371,19 @@ export default function ProductDetailPage() {
     setCurrentImageIndex((prev) => (prev + 1) % imageCount);
   };
 
+  // Zoom handlers
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 20, 200));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 20, 100));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(100);
+  };
+
   const carouselImage = product.additional_images.length > 0 
     ? product.additional_images[currentImageIndex]
     : displayedImage;
@@ -380,11 +396,18 @@ export default function ProductDetailPage() {
 
       <div className="mt-6 grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white p-4 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.45)]">
-          <img
-            src={carouselImage}
-            alt={product.name}
-            className="w-full rounded-[24px] bg-slate-50 object-cover transition-all duration-300"
-          />
+          {/* Image Container with Zoom */}
+          <div className="relative overflow-auto rounded-[24px] bg-slate-50" style={{ height: '500px' }}>
+            <img
+              src={carouselImage}
+              alt={product.name}
+              style={{
+                transform: `scale(${zoomLevel / 100})`,
+                transformOrigin: 'center',
+              }}
+              className="w-full h-full object-contain transition-transform duration-200"
+            />
+          </div>
 
           {/* Carousel Navigation Arrows */}
           {product.additional_images.length > 0 && (
@@ -403,6 +426,38 @@ export default function ProductDetailPage() {
               >
                 <ChevronRight className="h-6 w-6 text-slate-900" />
               </button>
+
+              {/* Zoom Controls */}
+              <div className="absolute bottom-4 left-4 flex gap-2">
+                <button
+                  onClick={handleZoomOut}
+                  disabled={zoomLevel <= 100}
+                  className="rounded-full bg-white/80 p-2 hover:bg-white transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Zoom out"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="h-5 w-5 text-slate-900" />
+                </button>
+                <button
+                  onClick={handleZoomIn}
+                  disabled={zoomLevel >= 200}
+                  className="rounded-full bg-white/80 p-2 hover:bg-white transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Zoom in"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="h-5 w-5 text-slate-900" />
+                </button>
+                {zoomLevel !== 100 && (
+                  <button
+                    onClick={handleResetZoom}
+                    className="rounded-full bg-white/80 px-2 py-2 hover:bg-white transition shadow-lg text-xs font-semibold text-slate-900"
+                    aria-label="Reset zoom"
+                    title="Reset Zoom"
+                  >
+                    {zoomLevel}%
+                  </button>
+                )}
+              </div>
 
               {/* Image Counter */}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-xs text-white">

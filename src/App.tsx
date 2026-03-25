@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import IntersectObserver from '@/components/common/IntersectObserver';
 import ScrollToTop from '@/components/common/ScrollToTop';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import { Toaster } from '@/components/ui/sonner';
 import { Header } from '@/components/layouts/Header';
 import { Footer } from '@/components/layouts/Footer';
@@ -21,6 +22,7 @@ function AppShell() {
     <>
       <IntersectObserver />
       <ScrollToTop />
+      <FloatingWhatsApp />
       <div className="flex min-h-screen flex-col">
         {!hideChrome && <Header />}
         <main className="flex-grow">

@@ -113,25 +113,9 @@ Message: ${payload.message}`;
 
   return (
     <div className="min-h-screen">
-      <div className="bg-secondary py-20 text-center">
-        <h1 className="mb-2 text-4xl font-bold">Get in Touch</h1>
-        <p className="text-muted-foreground">We&apos;d love to hear from you.</p>
-      </div>
-
       <section className="container mx-auto px-4 py-16">
-        <div className="mb-12 grid gap-6 md:grid-cols-3">
-          {contactInfo.map((info) => (
-            <Card key={info.title}>
-              <CardContent className="pt-6 text-center">
-                <info.icon className="mx-auto mb-4" />
-                <h3 className="font-bold">{info.title}</h3>
-                <p className="text-muted-foreground">{info.content}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="mx-auto max-w-xl">
+        {/* Contact Form - At Top */}
+        <div className="mx-auto mb-16 max-w-xl">
           <Card>
             <CardContent className="p-6">
               <h2 className="mb-4 text-xl font-bold">Send Message</h2>
@@ -181,6 +165,20 @@ Message: ${payload.message}`;
           </Card>
         </div>
 
+        {/* Contact Info Cards - At Bottom */}
+        <div className="mt-16 grid gap-6 md:grid-cols-3">
+          {contactInfo.map((info) => (
+            <Card key={info.title}>
+              <CardContent className="pt-6 text-center">
+                <info.icon className="mx-auto mb-4" />
+                <h3 className="font-bold">{info.title}</h3>
+                <p className="text-muted-foreground">{info.content}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* WhatsApp Button */}
         <div className="mt-10 text-center">
           <Button onClick={handleWhatsApp}>
             <MessageCircle className="mr-2" />

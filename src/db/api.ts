@@ -199,18 +199,24 @@ export const getProductsByCategory = async (categoryId) => {
     .eq('category_id', categoryId)
 
   if (error) console.log(error)
-  return data
+  return (data || []).map(normalizeProduct)
 }
 
 // SEARCH PRODUCTS
 export const searchProducts = async (query) => {
+  const trimmedQuery = String(query || '').trim()
+
+  if (!trimmedQuery) {
+    return []
+  }
+
   const { data, error } = await supabase
     .from('products')
     .select('*')
-    .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+    .or(`name.ilike.%${trimmedQuery}%,description.ilike.%${trimmedQuery}%,slug.ilike.%${trimmedQuery}%`)
 
   if (error) console.log(error)
-  return data
+  return (data || []).map(normalizeProduct)
 }
 
 // GET PRODUCT BY SLUG
@@ -420,6 +426,31 @@ export async function getRecentOrders(limit: number = 10): Promise<Order[]> {
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
+
+  if (error) throw error;
+  return Array.isArray(data) ? data.map(normalizeOrder) : [];
+}
+
+export async function getOrdersForCustomer(params: {
+  email?: string | null;
+  phone?: string | null;
+}): Promise<Order[]> {
+  const email = params.email?.trim();
+  const phone = params.phone?.trim();
+
+  if (!email && !phone) return [];
+
+  let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+
+  if (email && phone) {
+    query = query.or(`customer_email.eq.${email},email.eq.${email},customer_phone.eq.${phone},phone.eq.${phone}`);
+  } else if (email) {
+    query = query.or(`customer_email.eq.${email},email.eq.${email}`);
+  } else if (phone) {
+    query = query.or(`customer_phone.eq.${phone},phone.eq.${phone}`);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return Array.isArray(data) ? data.map(normalizeOrder) : [];

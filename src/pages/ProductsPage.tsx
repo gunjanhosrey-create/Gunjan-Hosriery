@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Filter, Search, Sparkles } from 'lucide-react';
+import { Search } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -14,62 +20,11 @@ import { Product3DCard } from '@/components/Product3DCard';
 import { getCategories, getProducts, getProductsByCategory, searchProducts } from '@/db/api';
 import type { Category, Product } from '@/types/index';
 
-const categoryPageContent: Record<
-  string,
-  { title: string; subtitle: string; eyebrow: string; accent: string }
-> = {
-  men: {
-    title: 'Menswear That Looks Sharp Every Day',
-    subtitle: 'Shop polished essentials, elevated basics, and easy styles built for all-day comfort.',
-    eyebrow: 'Mens Collection',
-    accent: 'from-slate-950 via-slate-900 to-red-900',
-  },
-  women: {
-    title: 'Modern Womenswear With Everyday Ease',
-    subtitle: 'Discover flattering fits, soft fabrics, and premium silhouettes for work, lounge, and beyond.',
-    eyebrow: 'Womens Collection',
-    accent: 'from-rose-950 via-fuchsia-900 to-orange-900',
-  },
-  boys: {
-    title: 'Boys Styles Built For Play And Comfort',
-    subtitle: 'From active basics to graphic favorites, shop durable everyday pieces for growing kids.',
-    eyebrow: 'Boys Collection',
-    accent: 'from-blue-950 via-sky-900 to-cyan-800',
-  },
-  girls: {
-    title: 'Girls Looks Full Of Color And Comfort',
-    subtitle: 'Cute sets, playful favorites, and soft essentials designed for movement and all-day wear.',
-    eyebrow: 'Girls Collection',
-    accent: 'from-pink-950 via-rose-900 to-purple-900',
-  },
-  'value-pack': {
-    title: 'Value Packs That Give You More For Less',
-    subtitle: 'Smart combo buys, everyday essentials, and family-ready packs designed for better savings.',
-    eyebrow: 'Value Pack',
-    accent: 'from-emerald-950 via-green-900 to-lime-800',
-  },
-  sale: {
-    title: 'Sale Picks Worth Grabbing Fast',
-    subtitle: 'Limited-time favorites, special drops, and standout pieces curated for quick shopping.',
-    eyebrow: 'Sale Edit',
-    accent: 'from-red-950 via-red-800 to-orange-700',
-  },
-  all: {
-    title: 'Shop The Full Gunjan Hosiery Collection',
-    subtitle: 'Browse every category, discover premium essentials, and find the right fit for every age and style.',
-    eyebrow: 'All Products',
-    accent: 'from-slate-950 via-slate-900 to-sky-900',
-  },
-};
-
-const navQuickLinks = [
-  { label: 'All', href: '/products' },
-  { label: 'Men', href: '/products?category=men' },
-  { label: 'Women', href: '/products?category=women' },
-  { label: 'Boys', href: '/products?category=boys' },
-  { label: 'Girls', href: '/products?category=girls' },
-  { label: 'Value Pack', href: '/products?category=value-pack' },
-  { label: 'Sale', href: '/products?sale=true' },
+const priceRanges = [
+  { label: 'Under Rs. 299', value: 'under-299' },
+  { label: 'Rs. 300 - 499', value: '300-499' },
+  { label: 'Rs. 500 - 799', value: '500-799' },
+  { label: 'Rs. 800+', value: '800-plus' },
 ];
 
 const getValuePackProducts = (products: Product[]) =>
@@ -91,13 +46,19 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('latest');
+  const [selectedPriceRange, setSelectedPriceRange] = useState('all');
+  const [selectedSize, setSelectedSize] = useState('all');
+  const [selectedColor, setSelectedColor] = useState('all');
+  const [selectedAvailability, setSelectedAvailability] = useState('all');
 
   const categoryFilter = searchParams.get('category');
   const filterType = searchParams.get('filter');
   const saleView = searchParams.get('sale') === 'true';
+  const queryParam = searchParams.get('q') || '';
 
-  const activePageKey = saleView ? 'sale' : categoryFilter || 'all';
-  const heroContent = categoryPageContent[activePageKey] || categoryPageContent.all;
+  useEffect(() => {
+    setSearchQuery(queryParam);
+  }, [queryParam]);
 
   useEffect(() => {
     async function loadCategories() {
@@ -116,9 +77,10 @@ export default function ProductsPage() {
       setLoading(true);
       try {
         let data: Product[] = [];
+        const trimmedQuery = queryParam.trim();
 
-        if (searchQuery) {
-          data = await searchProducts(searchQuery);
+        if (trimmedQuery) {
+          data = await searchProducts(trimmedQuery);
         } else if (saleView) {
           data = getSaleProducts(await getProducts());
         } else if (categoryFilter === 'value-pack') {
@@ -159,10 +121,60 @@ export default function ProductsPage() {
     if (categories.length > 0 || !categoryFilter) {
       loadProducts();
     }
-  }, [categories, categoryFilter, filterType, saleView, searchQuery]);
+  }, [categories, categoryFilter, filterType, saleView, queryParam]);
+
+  const filteredProducts = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    return products.filter((product) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        `${product.name} ${product.description ?? ''} ${product.slug} ${product.colors.join(' ')} ${product.sizes.join(' ')}`
+          .toLowerCase()
+          .includes(normalizedQuery);
+
+      const matchesPrice =
+        selectedPriceRange === 'all' ||
+        (selectedPriceRange === 'under-299' && product.price < 300) ||
+        (selectedPriceRange === '300-499' &&
+          product.price >= 300 &&
+          product.price <= 499) ||
+        (selectedPriceRange === '500-799' &&
+          product.price >= 500 &&
+          product.price <= 799) ||
+        (selectedPriceRange === '800-plus' && product.price >= 800);
+
+      const matchesSize =
+        selectedSize === 'all' || product.sizes.some((size) => size === selectedSize);
+
+      const matchesColor =
+        selectedColor === 'all' ||
+        product.colors.some((color) => color.toLowerCase() === selectedColor.toLowerCase());
+
+      const matchesAvailability =
+        selectedAvailability === 'all' ||
+        (selectedAvailability === 'in-stock' && product.stock_quantity > 0) ||
+        (selectedAvailability === 'out-of-stock' && product.stock_quantity === 0);
+
+      return (
+        matchesQuery &&
+        matchesPrice &&
+        matchesSize &&
+        matchesColor &&
+        matchesAvailability
+      );
+    });
+  }, [
+    products,
+    searchQuery,
+    selectedAvailability,
+    selectedColor,
+    selectedPriceRange,
+    selectedSize,
+  ]);
 
   const sortedProducts = useMemo(() => {
-    const cloned = [...products];
+    const cloned = [...filteredProducts];
 
     if (sortBy === 'price-low') {
       return cloned.sort((a, b) => a.price - b.price);
@@ -180,9 +192,17 @@ export default function ProductsPage() {
       (a, b) =>
         new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
     );
-  }, [products, sortBy]);
+  }, [filteredProducts, sortBy]);
 
   const selectedCategoryName = categories.find((category) => category.slug === categoryFilter)?.name;
+  const availableSizes = useMemo(
+    () => [...new Set(products.flatMap((product) => product.sizes).filter(Boolean))],
+    [products]
+  );
+  const availableColors = useMemo(
+    () => [...new Set(products.flatMap((product) => product.colors).filter(Boolean))],
+    [products]
+  );
 
   const handleCategoryChange = (value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -211,141 +231,278 @@ export default function ProductsPage() {
     setSearchParams(params);
   };
 
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+
+    const params = new URLSearchParams(searchParams);
+    const trimmedValue = value.trim();
+
+    if (trimmedValue) {
+      params.set('q', trimmedValue);
+    } else {
+      params.delete('q');
+    }
+
+    setSearchParams(params, { replace: true });
+  };
+
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,_#fff_0%,_#faf7f2_100%)]">
-      <section className={`bg-gradient-to-br ${heroContent.accent} text-white`}>
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="max-w-3xl">
-            <div className="mb-5 flex items-center gap-2 text-sm font-medium text-white/75">
-              <Sparkles className="h-4 w-4" />
-              <span>{heroContent.eyebrow}</span>
-            </div>
-            <h1 className="text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-              {heroContent.title}
-            </h1>
-            <p className="mt-5 max-w-2xl text-base text-white/80 sm:text-lg">
-              {heroContent.subtitle}
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              {navQuickLinks.map((item) => {
-                const isActive =
-                  (item.label === 'All' && !categoryFilter && !saleView) ||
-                  (item.label === 'Sale' && saleView) ||
-                  item.href.includes(`category=${categoryFilter}`);
-
-                return (
-                  <Link
-                    key={item.label}
-                    to={item.href}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      isActive
-                        ? 'bg-white text-slate-950'
-                        : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
+    <div className="min-h-screen bg-[#fcfbf8]">
+      <div className="mx-auto max-w-[1440px] px-4 pb-14 pt-10 sm:px-6 lg:px-8 lg:pt-14">
+        <section className="border-b border-[#e6dfd5] pb-10">
+          <div className="mx-auto max-w-5xl">
+            <div className="relative mx-auto mt-6 max-w-4xl">
+              <Input
+                type="text"
+                placeholder="Search by product name, style, color or size"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="h-14 rounded-none border-[#d8d1c6] bg-white px-5 pr-14 text-base shadow-none transition-all duration-300 focus:border-[#2e3b4f] focus-visible:ring-0"
+              />
+              <Search className="pointer-events-none absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#1f2937]" />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 rounded-[28px] border border-slate-200 bg-white/90 p-5 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.35)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <section className="pt-10">
+          <div className="grid gap-10 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]">
+            <aside className="lg:sticky lg:top-28 lg:self-start">
+              <Accordion type="multiple" defaultValue={['price', 'product-type', 'style']} className="border-t border-[#e6dfd5]">
+                <AccordionItem value="price" className="border-[#e6dfd5]">
+                  <AccordionTrigger className="py-5 text-xs font-medium uppercase tracking-[0.35em] text-[#4d4a45] hover:no-underline">
+                    Price
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPriceRange('all')}
+                      className={`block text-left text-sm transition ${
+                        selectedPriceRange === 'all' ? 'text-[#2e3b4f]' : 'text-[#7b746c]'
+                      }`}
+                    >
+                      All prices
+                    </button>
+                    {priceRanges.map((range) => (
+                      <button
+                        key={range.value}
+                        type="button"
+                        onClick={() => setSelectedPriceRange(range.value)}
+                        className={`block text-left text-sm transition ${
+                          selectedPriceRange === range.value ? 'text-[#2e3b4f]' : 'text-[#7b746c]'
+                        }`}
+                      >
+                        {range.label}
+                      </button>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="product-type" className="border-[#e6dfd5]">
+                  <AccordionTrigger className="py-5 text-xs font-medium uppercase tracking-[0.35em] text-[#4d4a45] hover:no-underline">
+                    Product Type
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => handleCategoryChange('all')}
+                      className={`block text-left text-sm transition ${
+                        !categoryFilter && !saleView ? 'text-[#2e3b4f]' : 'text-[#7b746c]'
+                      }`}
+                    >
+                      All collections
+                    </button>
+                    {[
+                      { label: 'Men', value: 'men' },
+                      { label: 'Women', value: 'women' },
+                      { label: 'Boys', value: 'boys' },
+                      { label: 'Girls', value: 'girls' },
+                      { label: 'Value Pack', value: 'value-pack' },
+                      { label: 'Sale', value: 'sale' },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => handleCategoryChange(item.value)}
+                        className={`block text-left text-sm transition ${
+                          (item.value === 'sale' && saleView) || categoryFilter === item.value
+                            ? 'text-[#2e3b4f]'
+                            : 'text-[#7b746c]'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="style" className="border-[#e6dfd5]">
+                  <AccordionTrigger className="py-5 text-xs font-medium uppercase tracking-[0.35em] text-[#4d4a45] hover:no-underline">
+                    Style
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-3">
+                    {[
+                      { label: 'All styles', value: 'all' },
+                      { label: 'Featured', value: 'featured' },
+                      { label: 'New arrivals', value: 'new' },
+                      { label: 'Trending', value: 'trending' },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => handleFilterChange(item.value)}
+                        className={`block text-left text-sm transition ${
+                          (filterType || 'all') === item.value ? 'text-[#2e3b4f]' : 'text-[#7b746c]'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="size" className="border-[#e6dfd5]">
+                  <AccordionTrigger className="py-5 text-xs font-medium uppercase tracking-[0.35em] text-[#4d4a45] hover:no-underline">
+                    Size
+                  </AccordionTrigger>
+                  <AccordionContent className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSize('all')}
+                      className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${
+                        selectedSize === 'all'
+                          ? 'border-[#2e3b4f] text-[#2e3b4f]'
+                          : 'border-[#d8d1c6] text-[#7b746c]'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {availableSizes.map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setSelectedSize(size)}
+                        className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${
+                          selectedSize === size
+                            ? 'border-[#2e3b4f] text-[#2e3b4f]'
+                            : 'border-[#d8d1c6] text-[#7b746c]'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="availability" className="border-[#e6dfd5]">
+                  <AccordionTrigger className="py-5 text-xs font-medium uppercase tracking-[0.35em] text-[#4d4a45] hover:no-underline">
+                    Availability
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-3">
+                    {[
+                      { label: 'All products', value: 'all' },
+                      { label: 'In stock', value: 'in-stock' },
+                      { label: 'Out of stock', value: 'out-of-stock' },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => setSelectedAvailability(item.value)}
+                        className={`block text-left text-sm transition ${
+                          selectedAvailability === item.value
+                            ? 'text-[#2e3b4f]'
+                            : 'text-[#7b746c]'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="color" className="border-[#e6dfd5]">
+                  <AccordionTrigger className="py-5 text-xs font-medium uppercase tracking-[0.35em] text-[#4d4a45] hover:no-underline">
+                    Color
+                  </AccordionTrigger>
+                  <AccordionContent className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedColor('all')}
+                      className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${
+                        selectedColor === 'all'
+                          ? 'border-[#2e3b4f] text-[#2e3b4f]'
+                          : 'border-[#d8d1c6] text-[#7b746c]'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {availableColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setSelectedColor(color)}
+                        className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.2em] ${
+                          selectedColor.toLowerCase() === color.toLowerCase()
+                            ? 'border-[#2e3b4f] text-[#2e3b4f]'
+                            : 'border-[#d8d1c6] text-[#7b746c]'
+                        }`}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </aside>
+
             <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {selectedCategoryName || (saleView ? 'Sale Collection' : 'All Collections')}
-              </p>
-              <p className="text-sm text-slate-500">
-                {sortedProducts.length} products ready to explore and purchase
-              </p>
+              <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-lg font-medium text-[#2e3b4f]">
+                    {sortedProducts.length} results
+                  </p>
+                  <p className="mt-1 text-sm text-[#7b746c]">
+                    {searchQuery.trim()
+                      ? `Showing matches for "${searchQuery.trim()}"`
+                      : 'Browse the latest Gunjan Hosiery collection'}
+                  </p>
+                </div>
+
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="h-12 w-full rounded-none border-[#d8d1c6] bg-white px-4 text-sm shadow-none md:w-[250px] focus:ring-0">
+                    <SelectValue placeholder="Relevance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="latest">Relevance</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    <SelectItem value="name">Name</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {loading ? (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  {[...Array(8)].map((_, i) => (
+                    <Skeleton key={i} className="aspect-[3/4] rounded-none bg-slate-200" />
+                  ))}
+                </div>
+              ) : sortedProducts.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  {sortedProducts.map((product) => (
+                    <Product3DCard key={product.id} product={product} />
+                  ))}
+                </div>
+              ) : (
+                <div className="border border-dashed border-[#d8d1c6] bg-white px-6 py-20 text-center">
+                  <p className="text-lg font-medium text-[#2e3b4f]">No products found</p>
+                  <p className="mt-2 text-sm text-[#7b746c]">
+                    Search text ya filters change karke phir try kijiye.
+                  </p>
+                </div>
+              )}
             </div>
-            <Link
-              to="/contact"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-red-600 transition hover:text-red-700"
-            >
-              Need bulk help?
-              <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
-        </div>
-
-        <div className="mb-8 flex flex-col gap-4 lg:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              type="text"
-              placeholder="Search products by name, style, or type"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-12 rounded-2xl border-slate-200 pl-11"
-            />
-          </div>
-
-          <Select value={saleView ? 'sale' : categoryFilter || 'all'} onValueChange={handleCategoryChange}>
-            <SelectTrigger className="h-12 w-full rounded-2xl border-slate-200 md:w-[220px]">
-              <Filter className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Collections</SelectItem>
-              <SelectItem value="men">Men</SelectItem>
-              <SelectItem value="women">Women</SelectItem>
-              <SelectItem value="boys">Boys</SelectItem>
-              <SelectItem value="girls">Girls</SelectItem>
-              <SelectItem value="value-pack">Value Pack</SelectItem>
-              <SelectItem value="sale">Sale</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={filterType || 'all'} onValueChange={handleFilterChange}>
-            <SelectTrigger className="h-12 w-full rounded-2xl border-slate-200 md:w-[220px]">
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="featured">Featured</SelectItem>
-              <SelectItem value="new">New Arrivals</SelectItem>
-              <SelectItem value="trending">Trending</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-12 w-full rounded-2xl border-slate-200 md:w-[220px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="latest">Latest</SelectItem>
-              <SelectItem value="price-low">Price: Low to High</SelectItem>
-              <SelectItem value="price-high">Price: High to Low</SelectItem>
-              <SelectItem value="name">Name</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {[...Array(8)].map((_, i) => (
-              <Skeleton key={i} className="aspect-[3/4] rounded-[28px] bg-slate-200" />
-            ))}
-          </div>
-        ) : sortedProducts.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {sortedProducts.map((product) => (
-              <Product3DCard key={product.id} product={product} />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-[32px] border border-dashed border-slate-300 bg-white px-6 py-20 text-center">
-            <p className="text-lg font-semibold text-slate-900">No products found</p>
-            <p className="mt-2 text-sm text-slate-500">
-              Try changing collection, search, or product filter.
-            </p>
-          </div>
-        )}
+        </section>
       </div>
     </div>
   );

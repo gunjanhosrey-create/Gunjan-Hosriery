@@ -2,10 +2,10 @@ import { Facebook, Instagram, Mail, MapPin, Phone, Youtube } from 'lucide-react'
 import { Link } from 'react-router-dom';
 
 const shopLinks = [
-  { label: 'MEN', href: '/products?category=men' },
-  { label: 'WOMEN', href: '/products?category=women' },
-  { label: 'BOYS', href: '/products?category=boys' },
-  { label: 'GIRLS', href: '/products?category=girls' },
+  { label: 'Men', href: '/products?category=men' },
+  { label: 'Women', href: '/products?category=women' },
+  { label: 'Boys', href: '/products?category=boys' },
+  { label: 'Girls', href: '/products?category=girls' },
 ];
 
 const quickLinks = [
@@ -17,7 +17,7 @@ const quickLinks = [
 ];
 
 const aboutLinks = [
-  { label: 'Retailer B2B Enquiry', href: '/contact' },
+  { label: 'Retail B2B Inquiries', href: '/contact' },
   { label: 'Bulk Orders', href: '/contact' },
   { label: 'About Us', href: '/about' },
   { label: 'Contact Us', href: '/contact' },
@@ -59,7 +59,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
-              Get In Touch
+              Contact
             </p>
             <ul className="mt-6 space-y-4 text-sm text-slate-300">
               <li className="flex items-start gap-3">
@@ -116,7 +116,7 @@ export function Footer() {
 
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
-              About & Connect
+              About and Support
             </p>
             <ul className="mt-6 space-y-3 text-sm text-slate-300">
               {aboutLinks.map((item) => (
@@ -137,7 +137,7 @@ export function Footer() {
               <div className="rounded-[28px] border border-white/10 bg-white/5 p-2">
                 <input
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="Enter your email address"
                   className="w-full bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500"
                 />
               </div>
@@ -163,7 +163,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-6 text-center text-sm text-slate-400">
-          <p>Copyright © 2026 Gunjan Hosiery. All rights reserved.</p>
+          <p>Copyright (c) 2026 Gunjan Hosiery. All rights reserved.</p>
         </div>
       </div>
     </footer>

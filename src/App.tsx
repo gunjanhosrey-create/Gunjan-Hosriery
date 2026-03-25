@@ -1,35 +1,53 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import IntersectObserver from '@/components/common/IntersectObserver';
+import ScrollToTop from '@/components/common/ScrollToTop';
 import { Toaster } from '@/components/ui/sonner';
 import { Header } from '@/components/layouts/Header';
 import { Footer } from '@/components/layouts/Footer';
 import { CartProvider } from '@/contexts/CartContext';
 import { AdminProvider } from '@/contexts/AdminContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 import routes from './routes';
+
+const AUTH_LAYOUT_ROUTES = new Set(['/login', '/reset-password']);
+
+function AppShell() {
+  const { pathname } = useLocation();
+  const hideChrome = AUTH_LAYOUT_ROUTES.has(pathname);
+
+  return (
+    <>
+      <IntersectObserver />
+      <ScrollToTop />
+      <div className="flex min-h-screen flex-col">
+        {!hideChrome && <Header />}
+        <main className="flex-grow">
+          <Routes>
+            {routes.map((route, index) => (
+              <Route key={index} path={route.path} element={route.element} />
+            ))}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        {!hideChrome && <Footer />}
+      </div>
+      <Toaster />
+    </>
+  );
+}
 
 const App: React.FC = () => {
   return (
     <Router>
-      <AdminProvider>
-        <CartProvider>
-          <IntersectObserver />
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow">
-              <Routes>
-                {routes.map((route, index) => (
-                  <Route key={index} path={route.path} element={route.element} />
-                ))}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-          <Toaster />
-        </CartProvider>
-      </AdminProvider>
+      <AuthProvider>
+        <AdminProvider>
+          <CartProvider>
+            <AppShell />
+          </CartProvider>
+        </AdminProvider>
+      </AuthProvider>
     </Router>
   );
 };

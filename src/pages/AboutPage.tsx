@@ -85,17 +85,35 @@ export default function AboutPage() {
 
       {/* Mission */}
       <section className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-6">Our Mission</h2>
-          <p className="text-xl text-muted-foreground mb-8">
-            To make premium fashion accessible and enjoyable for everyone, while maintaining
-            the highest standards of quality, sustainability, and customer service.
-          </p>
-          <div className="bg-primary text-primary-foreground p-8 rounded-lg">
-            <p className="text-lg italic">
-              "Fashion is about dressing according to what's fashionable. Style is more about
-              being yourself." - Oscar de la Renta
-            </p>
+        <div className="mx-auto max-w-6xl overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_28px_80px_-40px_rgba(15,23,42,0.35)]">
+          <div className="grid items-center gap-0 lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="h-full">
+              <img
+                src="/images/gunjan.png"
+                alt="Gunjan Hosiery"
+                className="h-full min-h-[320px] w-full object-cover"
+              />
+            </div>
+            <div className="p-8 sm:p-10 lg:p-14">
+              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.28em] text-red-600">
+                Our Signature
+              </p>
+              <h2 className="mb-5 text-3xl font-bold text-slate-900 md:text-4xl">
+                Fashion that feels personal, polished, and proudly made for everyday confidence.
+              </h2>
+              <p className="text-lg leading-8 text-slate-600">
+                At Gunjan Hosiery, we believe great style should leave an impression before a
+                word is spoken. Every collection is chosen to bring together comfort, quality,
+                and a look that makes customers feel confident the moment they wear it.
+              </p>
+              <p className="mt-4 text-lg leading-8 text-slate-600">
+                This is not just about clothing. It is about trust, presentation, and creating
+                a shopping experience that feels warm, memorable, and worth coming back to.
+              </p>
+              <p className="mt-8 text-base font-semibold uppercase tracking-[0.24em] text-slate-900">
+                By Gunjan Hosiery
+              </p>
+            </div>
           </div>
         </div>
       </section>

@@ -58,7 +58,7 @@ export default function ContactPage() {
     console.log('FORM DATA:', payload);
 
     if (!payload.name || !payload.phone || !payload.message) {
-      toast.error('Name, Phone aur Message required hai');
+      toast.error('Name, phone, and message are required');
       return;
     }
 

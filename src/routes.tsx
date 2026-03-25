@@ -8,6 +8,9 @@ import AddressPage from './pages/AddressPage';
 import WhatsAppOrderPage from './pages/WhatsAppOrderPage';
 import ContactPage from './pages/ContactPage';
 import AdminPage from './pages/AdminPage';
+import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import type { ReactNode } from 'react';
 
 interface RouteConfig {
@@ -62,6 +65,21 @@ const routes: RouteConfig[] = [
     name: 'Contact',
     path: '/contact',
     element: <ContactPage />,
+  },
+  {
+    name: 'Login',
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    name: 'Reset Password',
+    path: '/reset-password',
+    element: <ResetPasswordPage />,
+  },
+  {
+    name: 'Account',
+    path: '/account',
+    element: <ProfilePage />,
   },
   {
     name: 'Admin',

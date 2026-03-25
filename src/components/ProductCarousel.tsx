@@ -96,7 +96,7 @@ export function ProductCarousel({ products, autoPlayInterval = 3000 }: ProductCa
           <Button
             variant="outline"
             size="icon"
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-background/80 backdrop-blur-sm hover:bg-background opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            className="absolute left-3 top-1/2 z-10 -translate-y-1/2 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100"
             onClick={prevSlide}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -104,7 +104,7 @@ export function ProductCarousel({ products, autoPlayInterval = 3000 }: ProductCa
           <Button
             variant="outline"
             size="icon"
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-background/80 backdrop-blur-sm hover:bg-background opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity hover:bg-background group-hover:opacity-100"
             onClick={nextSlide}
           >
             <ChevronRight className="h-5 w-5" />

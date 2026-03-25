@@ -56,3 +56,16 @@ export interface CartItem {
   selectedSize: string;
   selectedColor: string;
 }
+
+export interface Profile {
+  id: string;
+  user_id: string;
+  email: string | null;
+  name: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  pincode: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

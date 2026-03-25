@@ -164,23 +164,6 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
-
-      {/* CTA Section */}
-      <section className="bg-primary text-primary-foreground py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Join the Fashion Revolution
-          </h2>
-          <p className="text-lg text-primary-foreground/90 mb-8 max-w-2xl mx-auto">
-            Subscribe to our newsletter for exclusive offers, style tips, and early access to new collections
-          </p>
-          <Link to="/contact">
-            <Button size="lg" variant="secondary">
-              Get in Touch
-            </Button>
-          </Link>
-        </div>
-      </section>
     </div>
   );
 }

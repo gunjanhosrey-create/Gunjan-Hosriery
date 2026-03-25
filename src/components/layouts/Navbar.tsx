@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ChevronDown,
   Facebook,
@@ -13,7 +13,9 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 
 type MegaMenuSection = {
@@ -112,8 +114,43 @@ const mobileQuickLinks = [...topLinks, { label: 'Admin', href: '/admin' }];
 
 export function Navbar() {
   const { getCartCount } = useCart();
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const cartCount = getCartCount();
   const [openMobileCategory, setOpenMobileCategory] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchHovered, setIsSearchHovered] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setSearchQuery(params.get('q') || '');
+  }, [location.search]);
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    const params = new URLSearchParams();
+    const query = searchQuery.trim();
+
+    if (query) {
+      params.set('q', query);
+    }
+
+    navigate({
+      pathname: '/products',
+      search: params.toString() ? `?${params.toString()}` : '',
+    });
+
+    setIsSearchOpen(true);
+  };
+
+  const handleSearchBlur = (e: React.FocusEvent<HTMLFormElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget) && !searchQuery.trim()) {
+      setIsSearchOpen(false);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
@@ -246,9 +283,9 @@ export function Navbar() {
             </Link>
           </div>
 
-          <nav className="hidden lg:flex lg:items-center lg:gap-2">
+          <nav className="relative hidden lg:flex lg:items-center lg:gap-2">
             {navCategories.map((category) => (
-              <div key={category.label} className="group relative">
+              <div key={category.label} className="group">
                 <Link
                   to={category.href}
                   className="flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold tracking-wide text-slate-800 transition hover:bg-slate-100 hover:text-red-600"
@@ -263,7 +300,7 @@ export function Navbar() {
                   )}
                 </Link>
 
-                <div className="pointer-events-none absolute left-1/2 top-full z-50 w-[min(92vw,880px)] -translate-x-1/2 translate-y-4 opacity-0 transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
+                <div className="pointer-events-none absolute left-1/2 top-full z-50 w-[min(calc(100vw-2rem),880px)] -translate-x-1/2 translate-y-4 opacity-0 transition duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
                   <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-[0_28px_80px_-30px_rgba(15,23,42,0.35)]">
                     <div className="mb-6 flex items-center justify-between">
                       <div>
@@ -308,13 +345,67 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <Link to="/admin">
+            <form
+              onSubmit={handleSearchSubmit}
+              onFocus={() => setIsSearchOpen(true)}
+              onBlur={handleSearchBlur}
+              onMouseEnter={() => setIsSearchHovered(true)}
+              onMouseLeave={() => {
+                setIsSearchHovered(false);
+                if (!searchQuery.trim()) {
+                  setIsSearchOpen(false);
+                }
+              }}
+              className="relative hidden md:flex"
+            >
+              <div
+                className={`relative overflow-hidden rounded-full border bg-white shadow-sm transition-all duration-300 ease-out ${
+                  isSearchOpen || isSearchHovered || searchQuery
+                    ? 'w-[320px] border-red-200 shadow-[0_10px_32px_-20px_rgba(220,38,38,0.55)]'
+                    : 'w-11 border-slate-200 hover:w-16 hover:border-slate-300'
+                }`}
+              >
+                <button
+                  type="submit"
+                  aria-label="Search products"
+                  className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center text-slate-500 transition hover:text-red-600"
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+                <Input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search tees, shorts, combo packs..."
+                  className={`h-11 border-0 bg-transparent pl-11 pr-12 text-sm shadow-none ring-0 transition-opacity duration-200 focus-visible:ring-0 ${
+                    isSearchOpen || isSearchHovered || searchQuery
+                      ? 'opacity-100'
+                      : 'pointer-events-none opacity-0'
+                  }`}
+                />
+                {(isSearchOpen || isSearchHovered || searchQuery) && (
+                  <button
+                    type="button"
+                    aria-label={searchQuery ? 'Clear search' : 'Close search'}
+                    onClick={() => {
+                      setSearchQuery('');
+                      setIsSearchHovered(false);
+                      setIsSearchOpen(false);
+                    }}
+                    className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center text-slate-400 transition hover:text-slate-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </form>
+            <Link to={user ? '/account' : '/login'}>
               <Button variant="ghost" size="icon" className="rounded-full text-slate-700 hover:bg-slate-100 hover:text-red-600">
                 <User className="h-5 w-5" />
               </Button>
             </Link>
             <Link to="/products">
-              <Button variant="ghost" size="icon" className="rounded-full text-slate-700 hover:bg-slate-100 hover:text-red-600">
+              <Button variant="ghost" size="icon" className="rounded-full text-slate-700 hover:bg-slate-100 hover:text-red-600 md:hidden">
                 <Search className="h-5 w-5" />
               </Button>
             </Link>

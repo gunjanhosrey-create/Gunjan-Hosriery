@@ -81,6 +81,28 @@ export default function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const inquiriesPerPage = 5;
 
+  // 4-Image states
+  const [images, setImages] = useState({
+    front: null as File | null,
+    back: null as File | null,
+    left: null as File | null,
+    right: null as File | null,
+  });
+
+  const [uploadedImages, setUploadedImages] = useState({
+    front: '',
+    back: '',
+    left: '',
+    right: '',
+  });
+
+  const [imageUploadProgress, setImageUploadProgress] = useState({
+    front: 0,
+    back: 0,
+    left: 0,
+    right: 0,
+  });
+
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -90,33 +112,11 @@ export default function AdminPage() {
     image_url: '',
     sizes: '',
     colors: '',
-    color_images: '',
     stock_quantity: '',
     is_featured: false,
     is_new_arrival: false,
     is_trending: false,
   });
-
-  const parseColorImageMappings = (value: string) =>
-    value
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const [color, ...urlParts] = line.split('|');
-        const url = urlParts.join('|').trim();
-        return {
-          color: color?.trim(),
-          url,
-        };
-      })
-      .filter((entry) => entry.color && entry.url)
-      .map((entry) => `color::${entry.color}::${entry.url}`);
-
-  const serializeColorImageMappings = (product: Product) =>
-    Object.entries(product.color_images || {})
-      .map(([color, url]) => `${color}|${url}`)
-      .join('\n');
 
   const colorSwatchMap: Record<string, string> = {
     black: '#111111',
@@ -254,7 +254,8 @@ export default function AdminPage() {
     });
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle main product image upload
+  const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -282,7 +283,7 @@ export default function AdminPage() {
 
       setFormData((prev) => ({ ...prev, image_url: urlData.publicUrl }));
       setUploadProgress(100);
-      toast.success('Image uploaded successfully!');
+      toast.success('Main image uploaded successfully!');
     } catch (err) {
       console.error('Error uploading image:', err);
       toast.error('Upload failed');
@@ -290,6 +291,77 @@ export default function AdminPage() {
       setUploading(false);
       setUploadProgress(0);
       e.target.value = '';
+    }
+  };
+
+  // Handle 4-image uploads (front, back, left, right)
+  const handleMultiImageChange = (type: 'front' | 'back' | 'left' | 'right', file: File | null) => {
+    setImages(prev => ({
+      ...prev,
+      [type]: file
+    }));
+  };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    const cleanName = file.name
+      .replace(/\s+/g, "_")
+      .replace(/[^a-zA-Z0-9._-]/g, "");
+
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${cleanName}`;
+
+    const { data, error } = await supabase.storage
+      .from('product_images')
+      .upload(fileName, file);
+
+    if (error) throw error;
+
+    const { data: publicUrl } = supabase.storage
+      .from('product_images')
+      .getPublicUrl(data.path);
+
+    return publicUrl.publicUrl;
+  };
+
+  const handleUploadAllImages = async () => {
+    if (!images.front && !images.back && !images.left && !images.right) {
+      toast.error("Please select at least one image");
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      if (images.front) {
+        const frontUrl = await uploadImage(images.front);
+        setImageUploadProgress(prev => ({ ...prev, front: 100 }));
+        setUploadedImages(prev => ({ ...prev, front: frontUrl }));
+      }
+
+      if (images.back) {
+        const backUrl = await uploadImage(images.back);
+        setImageUploadProgress(prev => ({ ...prev, back: 100 }));
+        setUploadedImages(prev => ({ ...prev, back: backUrl }));
+      }
+
+      if (images.left) {
+        const leftUrl = await uploadImage(images.left);
+        setImageUploadProgress(prev => ({ ...prev, left: 100 }));
+        setUploadedImages(prev => ({ ...prev, left: leftUrl }));
+      }
+
+      if (images.right) {
+        const rightUrl = await uploadImage(images.right);
+        setImageUploadProgress(prev => ({ ...prev, right: 100 }));
+        setUploadedImages(prev => ({ ...prev, right: rightUrl }));
+      }
+
+      toast.success('Images uploaded successfully! 🚀');
+    } catch (err) {
+      console.error('Error uploading images:', err);
+      toast.error('Error uploading images');
+      setImageUploadProgress({ front: 0, back: 0, left: 0, right: 0 });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -316,6 +388,14 @@ export default function AdminPage() {
           .replace(/[^a-z0-9-]/g, '') ||
         `product-${Date.now()}`;
 
+      // Build additional_images array from 4-image system
+      const additionalImages = [
+        uploadedImages.front,
+        uploadedImages.back,
+        uploadedImages.left,
+        uploadedImages.right,
+      ].filter(url => url.length > 0);
+
       const productData: Record<string, unknown> = {
         name: formData.name,
         slug,
@@ -324,7 +404,7 @@ export default function AdminPage() {
         category_id: formData.category_id || null,
         image_url: formData.image_url,
         stock_quantity: Number.parseInt(formData.stock_quantity) || 0,
-        additional_images: parseColorImageMappings(formData.color_images),
+        additional_images: additionalImages.length > 0 ? additionalImages : (editingProduct?.additional_images || []),
         is_featured: formData.is_featured,
         is_new_arrival: formData.is_new_arrival,
         is_trending: formData.is_trending,
@@ -352,12 +432,14 @@ export default function AdminPage() {
         image_url: '',
         sizes: '',
         colors: '',
-        color_images: '',
         stock_quantity: '',
         is_featured: false,
         is_new_arrival: false,
         is_trending: false,
       });
+      setImages({ front: null, back: null, left: null, right: null });
+      setUploadedImages({ front: '', back: '', left: '', right: '' });
+      setImageUploadProgress({ front: 0, back: 0, left: 0, right: 0 });
 
       // Reload products
       const productsData = await getProducts();
@@ -381,12 +463,14 @@ export default function AdminPage() {
       image_url: product.image_url,
       sizes: product.sizes.join(', '),
       colors: product.colors.join(', '),
-      color_images: serializeColorImageMappings(product),
       stock_quantity: product.stock_quantity.toString(),
       is_featured: product.is_featured,
       is_new_arrival: product.is_new_arrival,
       is_trending: product.is_trending,
     });
+    setImages({ front: null, back: null, left: null, right: null });
+    setUploadedImages({ front: '', back: '', left: '', right: '' });
+    setImageUploadProgress({ front: 0, back: 0, left: 0, right: 0 });
     setDialogOpen(true);
   };
 
@@ -548,7 +632,6 @@ export default function AdminPage() {
       image_url: '',
       sizes: '',
       colors: '',
-      color_images: '',
       stock_quantity: '',
       is_featured: false,
       is_new_arrival: false,
@@ -1315,13 +1398,13 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="image">Product Image *</Label>
+                  <Label htmlFor="image">Product Image (Main Thumbnail) *</Label>
                   <div className="space-y-2">
                     <Input
                       id="image"
                       type="file"
                       accept="image/*"
-                      onChange={handleImageUpload}
+                      onChange={handleMainImageUpload}
                       disabled={uploading}
                     />
                     {uploading && (
@@ -1338,6 +1421,111 @@ export default function AdminPage() {
                         alt="Preview"
                         className="w-32 h-32 object-cover rounded"
                       />
+                    </div>
+                  )}
+                </div>
+
+                {/* 4-Image System (Front, Back, Left, Right) */}
+                <div className="space-y-3 border-2 border-dashed border-amber-300 p-4 rounded-lg bg-amber-50">
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Front Image */}
+                    <div className="space-y-2">
+                      <Label htmlFor="image-front" className="text-sm">Front Image</Label>
+                      <div className="relative">
+                        <Input
+                          id="image-front"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleMultiImageChange('front', e.target.files?.[0] || null)}
+                          disabled={uploading}
+                          className="text-xs"
+                        />
+                        {images.front && (
+                          <span className="absolute right-2 top-2 text-green-600 text-sm">✓</span>
+                        )}
+                      </div>
+                      {uploadedImages.front && (
+                        <img src={uploadedImages.front} alt="Front" className="w-16 h-16 object-cover rounded" />
+                      )}
+                    </div>
+
+                    {/* Back Image */}
+                    <div className="space-y-2">
+                      <Label htmlFor="image-back" className="text-sm">Back Image</Label>
+                      <div className="relative">
+                        <Input
+                          id="image-back"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleMultiImageChange('back', e.target.files?.[0] || null)}
+                          disabled={uploading}
+                          className="text-xs"
+                        />
+                        {images.back && (
+                          <span className="absolute right-2 top-2 text-green-600 text-sm">✓</span>
+                        )}
+                      </div>
+                      {uploadedImages.back && (
+                        <img src={uploadedImages.back} alt="Back" className="w-16 h-16 object-cover rounded" />
+                      )}
+                    </div>
+
+                    {/* Left Image */}
+                    <div className="space-y-2">
+                      <Label htmlFor="image-left" className="text-sm">Left Image</Label>
+                      <div className="relative">
+                        <Input
+                          id="image-left"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleMultiImageChange('left', e.target.files?.[0] || null)}
+                          disabled={uploading}
+                          className="text-xs"
+                        />
+                        {images.left && (
+                          <span className="absolute right-2 top-2 text-green-600 text-sm">✓</span>
+                        )}
+                      </div>
+                      {uploadedImages.left && (
+                        <img src={uploadedImages.left} alt="Left" className="w-16 h-16 object-cover rounded" />
+                      )}
+                    </div>
+
+                    {/* Right Image */}
+                    <div className="space-y-2">
+                      <Label htmlFor="image-right" className="text-sm">Right Image</Label>
+                      <div className="relative">
+                        <Input
+                          id="image-right"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleMultiImageChange('right', e.target.files?.[0] || null)}
+                          disabled={uploading}
+                          className="text-xs"
+                        />
+                        {images.right && (
+                          <span className="absolute right-2 top-2 text-green-600 text-sm">✓</span>
+                        )}
+                      </div>
+                      {uploadedImages.right && (
+                        <img src={uploadedImages.right} alt="Right" className="w-16 h-16 object-cover rounded" />
+                      )}
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="button"
+                    onClick={handleUploadAllImages}
+                    disabled={uploading || (!images.front && !images.back && !images.left && !images.right)}
+                    className="w-full bg-amber-600 hover:bg-amber-700"
+                  >
+                    {uploading ? '⏳ Uploading...' : '🚀 Upload All 4 Images'}
+                  </Button>
+
+                  {Object.values(uploadedImages).filter(url => url).length > 0 && (
+                    <div className="text-xs text-green-700 bg-green-100 p-2 rounded">
+                      ✓ {Object.values(uploadedImages).filter(url => url).length}/4 images ready!
                     </div>
                   )}
                 </div>
@@ -1360,24 +1548,7 @@ export default function AdminPage() {
                       onChange={(e) => setFormData({ ...formData, colors: e.target.value })}
                       placeholder="Black, White, Blue"
                     />
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Use exact color names like Red, Black, Blue, Yellow, Pink.
-                    </p>
                   </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="color-images">Color Images</Label>
-                  <Textarea
-                    id="color-images"
-                    value={formData.color_images}
-                    onChange={(e) => setFormData({ ...formData, color_images: e.target.value })}
-                    placeholder={`red|https://image-url-red.jpg\nblue|https://image-url-blue.jpg\nblack|https://image-url-black.jpg`}
-                    rows={4}
-                  />
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    One line per color image. Format: color|image-url. Color name must match the color list exactly.
-                  </p>
                 </div>
 
                 <div>

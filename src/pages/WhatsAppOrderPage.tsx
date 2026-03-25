@@ -29,7 +29,7 @@ const WhatsAppOrderPage = () => {
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Order via WhatsApp</h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Place your orders conveniently through WhatsApp. Get instant responses and personalized assistance.
+            Place your order through WhatsApp and receive prompt, personalized assistance from our team.
           </p>
         </div>
       </div>
@@ -43,7 +43,7 @@ const WhatsAppOrderPage = () => {
             </div>
             <h2 className="text-3xl font-bold mb-4">Start Your Order</h2>
             <p className="text-lg text-muted-foreground mb-8">
-              Click the button below to open WhatsApp and start chatting with our team about your order.
+              Click the button below to open WhatsApp and begin a conversation with our team about your order.
             </p>
             <Button
               onClick={handleWhatsAppOrder}
@@ -79,17 +79,17 @@ const WhatsAppOrderPage = () => {
               <div className="text-center">
                 <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">1</div>
                 <h4 className="font-semibold mb-2">Choose Products</h4>
-                <p className="text-muted-foreground">Tell us about the products you're interested in</p>
+                <p className="text-muted-foreground">Tell us which products you are interested in.</p>
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">2</div>
                 <h4 className="font-semibold mb-2">Get Details</h4>
-                <p className="text-muted-foreground">Receive pricing, availability, and customization options</p>
+                <p className="text-muted-foreground">Receive pricing, availability, and customization details.</p>
               </div>
               <div className="text-center">
                 <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">3</div>
                 <h4 className="font-semibold mb-2">Complete Order</h4>
-                <p className="text-muted-foreground">Confirm your order and arrange payment/delivery</p>
+                <p className="text-muted-foreground">Confirm your order and finalize payment and delivery arrangements.</p>
               </div>
             </div>
           </div>

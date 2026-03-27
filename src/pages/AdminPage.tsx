@@ -50,6 +50,7 @@ import {
 } from '@/db/api';
 import { useAdmin } from '@/contexts/AdminContext';
 import type { Category, Product, Order, Inquiry, DashboardStats } from '@/types/index';
+import colorMap from '@/lib/colorMap';
 
 export default function AdminPage() {
   const { isAuthenticated, login, logout } = useAdmin();
@@ -140,7 +141,7 @@ export default function AdminPage() {
   };
 
   const getColorSwatchValue = (color: string) =>
-    colorSwatchMap[color.trim().toLowerCase()] || color.trim().toLowerCase();
+    colorMap[color.trim().toLowerCase()] || colorSwatchMap[color.trim().toLowerCase()] || color.trim().toLowerCase();
 
   const formatColorLabel = (color: string) =>
     color
@@ -1008,6 +1009,7 @@ export default function AdminPage() {
                         <TableHead>Contact</TableHead>
                         <TableHead>Items</TableHead>
                         <TableHead>Total</TableHead>
+                        <TableHead>Payment</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Actions</TableHead>
@@ -1074,6 +1076,19 @@ export default function AdminPage() {
                           </TableCell>
                           <TableCell className="font-semibold">
                             ₹{order.total_amount.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div className="font-medium">{order.payment_method || 'N/A'}</div>
+                              <div className={`text-xs ${order.payment_status === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
+                                {order.payment_status || 'pending'}
+                              </div>
+                              {order.transaction_id && (
+                                <div className="text-xs text-muted-foreground font-mono">
+                                  {order.transaction_id}
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Select

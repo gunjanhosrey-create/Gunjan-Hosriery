@@ -44,6 +44,7 @@ async function getProfile(userId: string): Promise<Profile | null> {
     .from('profiles')
     .select('*')
     .eq('user_id', userId)
+    .limit(1)
     .maybeSingle();
 
   if (error) {

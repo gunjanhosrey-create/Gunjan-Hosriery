@@ -42,6 +42,8 @@ export interface Order {
   customer_phone: string;
   customer_address: string | null;
   payment_method?: string | null;
+  payment_status?: string;
+  transaction_id?: string | null;
   total_amount: number;
   status: string;
   order_items: OrderItem[];

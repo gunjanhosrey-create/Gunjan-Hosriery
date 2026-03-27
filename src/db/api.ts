@@ -80,6 +80,8 @@ const normalizeOrder = (order: any): Order => ({
   customer_phone: order.customer_phone ?? order.phone ?? '',
   customer_address: order.customer_address ?? order.address ?? null,
   payment_method: order.payment_method ?? null,
+  payment_status: order.payment_status ?? 'pending',
+  transaction_id: order.transaction_id ?? null,
   total_amount: Number(order.total_amount ?? 0),
   status: order.status ?? 'pending',
   order_items: Array.isArray(order.order_items) ? order.order_items : [],
@@ -104,6 +106,7 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
     .from('categories')
     .select('*')
     .eq('slug', slug)
+    .limit(1)
     .maybeSingle();
 
   if (error) throw error;
@@ -225,12 +228,18 @@ export const getProductBySlug = async (slug) => {
     .from('products')
     .select('*')
     .eq('slug', slug)
-    .maybeSingle()
+    .limit(1)
 
-  if (error) console.log(error)
-  if (!data) return data
+  if (error) {
+    console.error('[getProductBySlug] Supabase error:', error.message, error.code);
+    return null;
+  }
 
-  return normalizeProduct(data)
+  if (!Array.isArray(data) || data.length === 0) {
+    return null;
+  }
+
+  return normalizeProduct(data[0]);
 }
 
 // CREATE PRODUCT (alias for addProduct)
@@ -263,6 +272,8 @@ export async function createOrder(orderData: {
   customer_phone: string;
   customer_address: string;
   payment_method?: string | null;
+  payment_status?: string;
+  transaction_id?: string | null;
   total_amount: number;
   order_items: OrderItem[];
 }): Promise<Order> {
@@ -272,6 +283,8 @@ export async function createOrder(orderData: {
     email: orderData.customer_email,
     address: orderData.customer_address,
     payment_method: orderData.payment_method ?? null,
+    payment_status: orderData.payment_status ?? 'pending',
+    transaction_id: orderData.transaction_id ?? null,
     total_amount: orderData.total_amount,
     order_items: orderData.order_items,
     status: 'pending'
@@ -299,6 +312,8 @@ export async function createOrder(orderData: {
     customer_phone: orderData.customer_phone,
     customer_address: orderData.customer_address,
     payment_method: orderData.payment_method ?? null,
+    payment_status: orderData.payment_status ?? 'pending',
+    transaction_id: orderData.transaction_id ?? null,
     total_amount: orderData.total_amount,
     order_items: orderData.order_items,
     status: 'pending'

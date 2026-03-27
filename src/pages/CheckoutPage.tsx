@@ -57,6 +57,8 @@ export default function CheckoutPage() {
         customer_phone: formData.phone,
         customer_address: formData.address,
         payment_method: paymentMethod.toUpperCase(),
+        payment_status: paymentMethod === 'cod' ? 'pending' : 'paid',
+        transaction_id: paymentMethod === 'cod' ? null : `TXN${Date.now()}`,
         total_amount: getCartTotal(),
         order_items: orderItems,
       });

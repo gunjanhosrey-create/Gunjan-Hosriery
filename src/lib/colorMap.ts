@@ -1,0 +1,27 @@
+const colorMap: Record<string, string> = {
+  red: "#ff0000",
+  blue: "#0000ff",
+  green: "#008000",
+  black: "#000000",
+  white: "#ffffff",
+  yellow: "#ffff00",
+  pink: "#ffc0cb",
+  purple: "#800080",
+  orange: "#ffa500",
+  grey: "#808080",
+  gray: "#808080",
+  brown: "#8b4513",
+  beige: "#f5f5dc",
+  cream: "#fffdd0",
+  maroon: "#800000",
+  olive: "#808000",
+  sky: "#87ceeb",
+  navy: "#000080",
+  teal: "#008080",
+  lime: "#00ff00",
+  aqua: "#00ffff",
+  silver: "#c0c0c0",
+  gold: "#ffd700",
+};
+
+export default colorMap;

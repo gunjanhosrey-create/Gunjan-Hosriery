@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Product3DCard } from '@/components/Product3DCard';
 import { ProductCarousel } from '@/components/ProductCarousel';
 import { CategoryShowcase } from '@/components/CategoryShowcase';
-import { getProducts } from '@/db/api';
+import { getCategories, getProducts } from '@/db/api';
 import { supabase } from '@/db/supabase';
 import type { Category, Product } from '@/types/index';
 
@@ -18,14 +18,10 @@ export default function HomePage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { data, error } = await supabase
-          .from('categories')
-          .select('*');
-        console.log('categories:', data);
-        if (error) console.error('categories error:', error);
-
+        const categoriesData = await getCategories();
         const productsData = await getProducts();
-        setCategories(data || []);
+
+        setCategories(categoriesData);
         setProducts(productsData || []);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -47,12 +43,13 @@ export default function HomePage() {
         new Date(a?.created_at ?? 0).getTime()
     )
     .slice(0, 8);
+  const trendingProducts = products.filter((p) => p?.is_trending).slice(0, 10);
 
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative h-[600px] md:h-[700px] flex items-center justify-center overflow-hidden bg-secondary">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-gold/10" />
+      <section className="relative h-[400px] md:h-[500px] flex items-center justify-center overflow-hidden bg-secondary" style={{ backgroundImage: 'url(/images/hero-default.jpg)', backgroundPosition: 'center', backgroundSize: 'cover' }}>
+        <div className="absolute inset-0 bg-black/30" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
           <div className="flex items-center justify-center mb-6">
             <Sparkles className="h-8 w-8 text-gold mr-2" />
@@ -91,14 +88,14 @@ export default function HomePage() {
           </p>
         </div>
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {[...Array(5)].map((_, i) => (
               <Skeleton key={i} className="aspect-square bg-muted" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {categories.slice(0, 4).map((category) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {categories.slice(0, 5).map((category) => (
               <CategoryShowcase key={category.id} category={category} />
             ))}
           </div>

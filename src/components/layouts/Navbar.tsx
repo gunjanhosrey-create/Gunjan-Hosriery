@@ -155,7 +155,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
       <div className="border-b border-slate-200 bg-slate-950 text-slate-200">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-xs sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 text-sm sm:px-6 lg:px-8">
           <div className="hidden items-center gap-5 md:flex">
             {topLinks.map((item) => (
               <Link key={item.label} to={item.href} className="transition hover:text-white">

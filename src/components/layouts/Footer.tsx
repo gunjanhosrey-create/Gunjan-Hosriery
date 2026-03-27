@@ -6,6 +6,7 @@ const shopLinks = [
   { label: 'Women', href: '/products?category=women' },
   { label: 'Boys', href: '/products?category=boys' },
   { label: 'Girls', href: '/products?category=girls' },
+  { label: 'Kids', href: '/products?category=kids' },
 ];
 
 const quickLinks = [

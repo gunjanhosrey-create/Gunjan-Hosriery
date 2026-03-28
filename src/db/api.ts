@@ -29,32 +29,6 @@ const normalizeStringList = (value: unknown): string[] => {
   return [];
 };
 
-const COLOR_IMAGE_PREFIX = 'color::';
-
-const normalizeColorKey = (value: string) => value.trim().toLowerCase();
-
-const parseColorImageMap = (value: unknown): Record<string, string> => {
-  if (!Array.isArray(value)) return {};
-
-  return value.reduce<Record<string, string>>((acc, entry) => {
-    if (typeof entry !== 'string' || !entry.startsWith(COLOR_IMAGE_PREFIX)) {
-      return acc;
-    }
-
-    const rawValue = entry.slice(COLOR_IMAGE_PREFIX.length);
-    const separatorIndex = rawValue.indexOf('::');
-    if (separatorIndex === -1) return acc;
-
-    const color = rawValue.slice(0, separatorIndex).trim();
-    const url = rawValue.slice(separatorIndex + 2).trim();
-
-    if (!color || !url) return acc;
-
-    acc[normalizeColorKey(color)] = url;
-    return acc;
-  }, {});
-};
-
 const normalizeProduct = (product: any): Product => {
   const additionalImages = Array.isArray(product.additional_images)
     ? product.additional_images.map(String)
@@ -67,7 +41,6 @@ const normalizeProduct = (product: any): Product => {
       product.slug ??
       (product.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
     additional_images: additionalImages,
-    color_images: parseColorImageMap(additionalImages),
     sizes: normalizeStringList(product.sizes),
     colors: normalizeStringList(product.colors),
   };

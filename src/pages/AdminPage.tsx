@@ -119,29 +119,8 @@ export default function AdminPage() {
     is_trending: false,
   });
 
-  const colorSwatchMap: Record<string, string> = {
-    black: '#111111',
-    white: '#f8fafc',
-    red: '#dc2626',
-    blue: '#2563eb',
-    navy: '#1e3a8a',
-    green: '#16a34a',
-    yellow: '#facc15',
-    pink: '#ec4899',
-    purple: '#7c3aed',
-    orange: '#f97316',
-    grey: '#6b7280',
-    gray: '#6b7280',
-    brown: '#8b5e3c',
-    beige: '#d6c4a1',
-    cream: '#f5f0e6',
-    maroon: '#7f1d1d',
-    olive: '#4d5d27',
-    sky: '#38bdf8',
-  };
-
   const getColorSwatchValue = (color: string) =>
-    colorMap[color.trim().toLowerCase()] || colorSwatchMap[color.trim().toLowerCase()] || color.trim().toLowerCase();
+    colorMap[color.trim().toLowerCase()] || color.trim().toLowerCase();
 
   const formatColorLabel = (color: string) =>
     color

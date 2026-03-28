@@ -89,16 +89,23 @@ const normalizeOptions = (value: unknown): string[] => {
 };
 
 const getColorValue = (color: string) => {
-  if (!color) return "#ccc";
+  if (!color || typeof color !== 'string') return "#ccc";
 
   const clean = color.trim().toLowerCase();
 
-  return colorMap[clean] || clean; // 🔥 IMPORTANT fallback
-};
+  // Check if it's already a hex color
+  if (clean.startsWith('#') && (clean.length === 4 || clean.length === 7)) {
+    return clean;
+  }
 
-const getSelectedColorImage = (product: Product, color: string) => {
-  if (!color) return product.image_url;
-  return product.color_images?.[color.trim().toLowerCase()] || product.image_url;
+  // Check colorMap
+  if (colorMap[clean]) {
+    return colorMap[clean];
+  }
+
+  // Fallback: try to find close matches or return a default
+  console.warn(`Color "${color}" not found in colorMap, using fallback`);
+  return "#ccc"; // fallback color
 };
 
 const formatColorName = (color: string) =>
@@ -240,7 +247,7 @@ export default function ProductDetailPage() {
     addToCart({
       product: {
         ...product,
-        image_url: getSelectedColorImage(product, selectedColor),
+        image_url: product.image_url,
       },
       quantity,
       selectedSize,
@@ -266,7 +273,7 @@ export default function ProductDetailPage() {
     addToCart({
       product: {
         ...product,
-        image_url: getSelectedColorImage(product, selectedColor),
+        image_url: product.image_url,
       },
       quantity,
       selectedSize,
@@ -343,7 +350,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const displayedImage = getSelectedColorImage(product, selectedColor);
+  const displayedImage = product.image_url;
 
   // Carousel handlers
   const handlePrevImage = () => {
@@ -508,28 +515,31 @@ export default function ProductDetailPage() {
                     Select Color
                     {selectedColor ? `: ${formatColorName(selectedColor)}` : ""}
                   </Label>
+                  <div>Colors array: {JSON.stringify(product.colors)}</div> {/* DEBUG */}
+                  {console.log("Rendering colors:", product.colors)} {/* DEBUG */}
                   <div className="mt-3 flex flex-wrap gap-3">
-                    {(Array.isArray(product.colors) ? product.colors : String(product.colors).split(",")).map((color) => {
-                      const cleanColor = color.trim();
-                      return (
-                        <button
-                          key={cleanColor}
-                          type="button"
-                          title={cleanColor}
-                          onClick={() => setSelectedColor(cleanColor)}
-                          className={`flex h-12 w-12 items-center justify-center rounded-full border p-1 transition ${
-                            selectedColor === cleanColor
-                              ? "border-slate-950 bg-slate-50 shadow-sm"
-                              : "border-slate-200 bg-white hover:border-slate-400"
-                          }`}
-                        >
-                          <span
-                            className="h-8 w-8 rounded-full border border-slate-300 shadow-inner"
-                            style={{ backgroundColor: getColorValue(cleanColor) }}
-                          />
-                        </button>
-                      );
-                    })}
+                  {(Array.isArray(product.colors) ? product.colors : String(product.colors || '').split(','))
+                    .map((color) => color.trim())
+                    .filter((color) => color.length > 0)
+                    .map((cleanColor) => (
+                      <button
+                        key={cleanColor}
+                        type="button"
+                        title={cleanColor}
+                        onClick={() => setSelectedColor(cleanColor)}
+                        className={`flex h-12 w-12 items-center justify-center rounded-full border p-1 transition ${
+                          selectedColor === cleanColor
+                            ? "border-slate-950 bg-slate-50 shadow-sm"
+                            : "border-slate-200 bg-white hover:border-slate-400"
+                        }`}
+                      >
+                        <span
+                          className="h-8 w-8 rounded-full border border-slate-300 shadow-inner"
+                          style={{ backgroundColor: getColorValue(cleanColor) }}
+                          title={`Color: ${cleanColor}`}
+                        />
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
